@@ -2,17 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\Storage;
-
+use Illuminate\Http\Request;
 use App\Models\Fasilitas;
 use App\Models\FasilitasGambar;
-use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class FasilitasController extends Controller
 {
+
     public function index()
     {
-        $fasilitas = Fasilitas::with('gambar')->get();
+        // ✅ PAGINATION 8 DATA
+        $fasilitas = Fasilitas::with('gambar')->paginate(8);
+
         return view('admin.fasilitas.index', compact('fasilitas'));
     }
 
@@ -23,35 +25,27 @@ class FasilitasController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'nama_fasilitas'   => 'required',
-            'harga_sewa'       => 'required|numeric',
-            'status_fasilitas' => 'required',
-            'gambar.*'         => 'image|mimes:jpg,jpeg,png|max:2048'
-        ]);
+        $fasilitas = new Fasilitas();
+        $fasilitas->nama_fasilitas = $request->nama_fasilitas;
+        $fasilitas->deskripsi = $request->deskripsi;
+        $fasilitas->harga_sewa = $request->harga_sewa;
+        $fasilitas->status_fasilitas = $request->status_fasilitas;
+        $fasilitas->save();
 
-        // simpan fasilitas
-        $fasilitas = Fasilitas::create([
-            'nama_fasilitas'   => $request->nama_fasilitas,
-            'deskripsi'        => $request->deskripsi,
-            'harga_sewa'       => $request->harga_sewa,
-            'status_fasilitas' => $request->status_fasilitas
-        ]);
+        if($request->hasFile('gambar')){
+            foreach($request->file('gambar') as $img){
 
-        // simpan gambar (jika ada)
-        if ($request->hasFile('gambar')) {
-            foreach ($request->file('gambar') as $img) {
-                $path = $img->store('fasilitas', 'public');
+                $path = $img->store('fasilitas','public');
 
-                FasilitasGambar::create([
-                    'id_fasilitas' => $fasilitas->id_fasilitas,
-                    'file_gambar'  => $path
-                ]);
+                $gambar = new FasilitasGambar();
+                $gambar->id_fasilitas = $fasilitas->id_fasilitas;
+                $gambar->file_gambar = $path;
+                $gambar->save();
             }
         }
 
         return redirect()->route('fasilitas.index')
-                         ->with('success', 'Fasilitas berhasil ditambahkan');
+        ->with('success','Fasilitas berhasil ditambahkan');
     }
 
     public function edit($id)
@@ -64,56 +58,66 @@ class FasilitasController extends Controller
     {
         $fasilitas = Fasilitas::findOrFail($id);
 
-        $fasilitas->update($request->only([
-            'nama_fasilitas',
-            'deskripsi',
-            'harga_sewa',
-            'status_fasilitas'
-        ]));
+        $fasilitas->nama_fasilitas = $request->nama_fasilitas;
+        $fasilitas->deskripsi = $request->deskripsi;
+        $fasilitas->harga_sewa = $request->harga_sewa;
+        $fasilitas->status_fasilitas = $request->status_fasilitas;
+        $fasilitas->save();
 
-        // tambah gambar baru (opsional)
-        if ($request->hasFile('gambar')) {
-            foreach ($request->file('gambar') as $img) {
-                $path = $img->store('fasilitas', 'public');
+        if($request->hasFile('gambar')){
+            foreach($request->file('gambar') as $img){
 
-                FasilitasGambar::create([
-                    'id_fasilitas' => $fasilitas->id_fasilitas,
-                    'file_gambar'  => $path
-                ]);
+                $path = $img->store('fasilitas','public');
+
+                $gambar = new FasilitasGambar();
+                $gambar->id_fasilitas = $fasilitas->id_fasilitas;
+                $gambar->file_gambar = $path;
+                $gambar->save();
             }
         }
 
         return redirect()->route('fasilitas.index')
-                         ->with('success', 'Fasilitas berhasil diupdate');
+        ->with('success','Fasilitas berhasil diupdate');
     }
 
     public function destroy($id)
     {
         $fasilitas = Fasilitas::with('gambar')->findOrFail($id);
 
-        // hapus file gambar dari storage
-        foreach ($fasilitas->gambar as $g) {
+        foreach($fasilitas->gambar as $g){
             Storage::disk('public')->delete($g->file_gambar);
+            $g->delete();
         }
 
-        // hapus data fasilitas (gambar ikut terhapus karena cascade)
         $fasilitas->delete();
 
         return redirect()->route('fasilitas.index')
-                        ->with('success', 'Fasilitas berhasil dihapus');
+        ->with('success','Fasilitas berhasil dihapus');
     }
-
 
     public function hapusGambar($id)
     {
         $gambar = FasilitasGambar::findOrFail($id);
 
-        // hapus file gambar dari storage
-        Storage::disk('public')->delete($gambar->file_gambar);
+        if (Storage::disk('public')->exists($gambar->file_gambar)) {
+            Storage::disk('public')->delete($gambar->file_gambar);
+        }
 
-        // hapus data gambar dari database
         $gambar->delete();
 
-        return back()->with('success', 'Gambar berhasil dihapus');
+        return back()->with('success', 'Gambar berhasil dihapus!');
+    }
+
+    public function indexUser()
+    {
+        $fasilitas = Fasilitas::where('status_fasilitas', 'tersedia')->paginate(8);
+
+        return view('user.fasilitas.index', compact('fasilitas'));
+    }
+
+    public function show($id)
+    {
+        $fasilitas = Fasilitas::findOrFail($id);
+        return view('user.fasilitas.show', compact('fasilitas'));
     }
 }

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,7 +14,7 @@ use Illuminate\View\View;
 class RegisteredUserController extends Controller
 {
     /**
-     * Menampilkan halaman register
+     * Halaman register
      */
     public function create(): View
     {
@@ -23,32 +22,31 @@ class RegisteredUserController extends Controller
     }
 
     /**
-     * Proses registrasi user
+     * Proses register
      */
     public function store(Request $request): RedirectResponse
     {
-        // Validasi input
         $request->validate([
             'nama' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
+            'nik' => ['required', 'string', 'size:16', 'unique:users,nik'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'no_hp' => ['required', 'max:20'],
+            'alamat' => ['required'],
         ]);
 
-        // Simpan user ke database
         $user = User::create([
-            'nama' => $request->nama,
+            'name' => $request->nama,
+            'nik' => $request->nik,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => 'user', // default role
+            'role' => 'penyewa',
+            'no_hp' => $request->no_hp,
+            'alamat' => $request->alamat,
         ]);
 
-        // Event register
-        event(new Registered($user));
-
-        // Login otomatis
         Auth::login($user);
 
-        // Redirect setelah register
-        return redirect()->route('dashboard');
+        return redirect()->route('user.dashboard');
     }
 }

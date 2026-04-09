@@ -21,8 +21,16 @@ class Fasilitas extends Model
     {
         return $this->hasMany(
             FasilitasGambar::class,
-            'id_fasilitas',
             'id_fasilitas'
         );
     }
+
+    public function penyewaan()
+    {
+        return $this->hasMany(
+            Penyewaan::class,
+            'id_fasilitas',
+            'id_fasilitas');
+    }
+
 }

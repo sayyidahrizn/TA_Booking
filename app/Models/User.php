@@ -13,18 +13,20 @@ class User extends Authenticatable
     /**
      * Primary key custom
      */
-    protected $primaryKey = 'id_user';
+    protected $primaryKey = 'id';
 
     /**
      * Kolom yang boleh diisi
      */
     protected $fillable = [
-        'nama',
+        'name',
+        'nik',
         'email',
         'password',
         'role',
         'no_hp',
         'alamat',
+  
     ];
 
     /**
@@ -42,4 +44,12 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+
+    public function penyewaan()
+    {
+        return $this->hasMany(Penyewaan::class, 'id_user', 'id');
+    }
+
+
 }
