@@ -1,7 +1,7 @@
 @extends('admin.layout')
 
 @section('title', 'Dashboard Admin')
-@section('page-title', 'Dashboard / Statistik Utama')
+@section('page-title', 'Dashboard')
 
 @section('content')
 <style>

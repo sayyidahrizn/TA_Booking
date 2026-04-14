@@ -1,7 +1,7 @@
 <div class="sidebar">
     <h2>Pengunjung</h2>
 
-    <a href="{{ url('/user/dashboard') }}"
+    <a href="{{ route('user.dashboard') }}"
        class="{{ request()->is('user/dashboard') ? 'active' : '' }}">
         Dashboard
     </a>
@@ -12,13 +12,19 @@
     </a>
 
     <a href="{{ route('user.penyewaan.index') }}"
-       class="{{ request()->is('user/penyewaan/create') ? 'active' : '' }}">
+       class="{{ request()->is('user/penyewaan*') ? 'active' : '' }}">
         Penyewaan
     </a>
 
     <a href="{{ route('user.riwayat') }}"
        class="{{ request()->is('user/riwayat') ? 'active' : '' }}">
         Riwayat Penyewaan
+    </a>
+
+    {{-- Menu Pengembalian (sementara belum aktif) --}}
+    <a href="#"
+       onclick="">
+        Pengembalian
     </a>
 
     <form method="POST" action="{{ route('logout') }}">

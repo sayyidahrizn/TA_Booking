@@ -9,6 +9,7 @@ use App\Models\Fasilitas;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon;
 
 class PenyewaanController extends Controller
@@ -182,4 +183,39 @@ class PenyewaanController extends Controller
 
         return back()->with('error', 'Gagal mengunggah bukti pembayaran.');
     }
+
+    /**
+     * Halaman Profil User
+     */
+    public function profile()
+    {
+        $user = Auth::user();
+        return view('user.profile.index', compact('user'));
+    }
+
+    /**
+     * Update Profil User
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = Auth::user();
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email,' . $user->id,
+            'password' => 'nullable|min:6|confirmed',
+        ]);
+
+        $user->name = $request->name;
+        $user->email = $request->email;
+
+        if ($request->filled('password')) {
+            $user->password = Hash::make($request->password);
+        }
+
+        $user->save();
+
+        return back()->with('success', 'Profil berhasil diperbarui!');
+    }
+
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 
 class UserController extends Controller
 {
@@ -35,14 +36,13 @@ class UserController extends Controller
             'name'     => $request->name,
             'email'    => $request->email,
             'role'     => $request->role,
-            'password' => Hash::make($request->password) // Menggunakan Hash::make lebih standar Laravel
+            'password' => Hash::make($request->password)
         ]);
 
         return redirect()->route('users.index')
             ->with('success', 'User berhasil ditambahkan');
     }
 
-    // ✅ METHOD EDIT (Penting untuk memunculkan halaman edit)
     public function edit($id)
     {
         $user = User::findOrFail($id);
@@ -54,40 +54,66 @@ class UserController extends Controller
         $user = User::findOrFail($id);
 
         $request->validate([
-            'nik'      => 'required|numeric|digits:16|unique:users,nik,'.$id,
-            'name'  => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,'.$id,
+            'nik'      => 'required|numeric|digits:16|unique:users,nik,' . $id,
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|email|unique:users,email,' . $id,
             'role'     => 'required|in:kaur,penyewa',
-            'password' => 'nullable|min:6' // Password opsional saat edit
+            'password' => 'nullable|min:6'
         ]);
 
-        // Update Name & Email
         $user->nik = $request->nik;
         $user->name = $request->name;
         $user->email = $request->email;
         $user->role = $request->role;
 
-        // Cek jika password diisi, maka update password-nya
         if ($request->filled('password')) {
             $user->password = Hash::make($request->password);
         }
 
         $user->save();
 
-        // Redirect ke index supaya notifikasi muncul di halaman utama tabel
         return redirect()->route('users.index')->with('success', 'User berhasil diperbarui');
     }
 
     public function destroy($id)
     {
         $user = User::findOrFail($id);
-        
-        // Proteksi agar admin tidak tidak sengaja menghapus dirinya sendiri
+
         if (auth()->id() == $user->id) {
             return back()->with('error', 'Anda tidak dapat menghapus akun Anda sendiri!');
         }
 
         $user->delete();
+
         return back()->with('success', 'User berhasil dihapus');
+    }
+
+    // ================= PROFIL ADMIN =================
+    public function profile()
+    {
+        $admin = Auth::user();
+        return view('admin.profile.index', compact('admin'));
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $admin = Auth::user();
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email,' . $admin->id,
+            'password' => 'nullable|min:6|confirmed',
+        ]);
+
+        $admin->update([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => $request->filled('password')
+                ? Hash::make($request->password)
+                : $admin->password,
+        ]);
+
+        return redirect()->route('admin.profile')
+            ->with('success', 'Profil berhasil diperbarui!');
     }
 }

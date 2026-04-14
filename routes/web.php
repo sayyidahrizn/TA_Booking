@@ -52,6 +52,10 @@ Route::middleware(['auth'])->group(function () {
     // Pembayaran
     Route::get('/user/pembayaran/{id}', [UserPenyewaan::class, 'pembayaran'])->name('user.pembayaran.index');
     Route::post('/user/pembayaran/simpan/{id}', [UserPenyewaan::class, 'pembayaranStore'])->name('user.pembayaran.store');
+
+    // Profile
+    Route::get('/user/profile', [UserPenyewaan::class, 'profile'])->name('user.profile');
+    Route::post('/user/profile/update', [UserPenyewaan::class, 'updateProfile'])->name('user.profile.update');
 });
 
 /*
@@ -72,6 +76,9 @@ Route::prefix('admin')->middleware(['auth','isAdmin'])->group(function () {
     Route::post('/penyewaan/konfirmasi-group/{kode}', [AdminPenyewaan::class, 'konfirmasiGroup'])->name('admin.penyewaan.konfirmasi.group');
     Route::post('/penyewaan/tolak-group/{kode}', [AdminPenyewaan::class, 'tolakGroup'])->name('admin.penyewaan.tolak.group');
     Route::delete('/penyewaan/{id}', [AdminPenyewaan::class, 'destroy'])->name('admin.penyewaan.destroy');
+
+    Route::get('/profile', [UserController::class, 'profile'])->name('admin.profile');
+    Route::post('/profile/update', [UserController::class, 'updateProfile'])->name('admin.profile.update');
 });
 
 require __DIR__.'/auth.php';

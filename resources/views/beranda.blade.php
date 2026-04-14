@@ -121,7 +121,7 @@
     <!-- HEADER -->
     <div class="header">
         <h1>Sistem Penyewaan Fasilitas Desa Kesamben</h1>
-        <p>Pelayanan pemesanan fasilitas desa secara online</p>
+        <p>Pelayanan penyewaan fasilitas desa secara online</p>
     </div>
 
     <!-- NAVBAR -->
@@ -186,7 +186,6 @@
                 </tr>
             </table>
 
-            <a href="#" class="btn-booking">Ajukan Penyewaan</a>
         </div>
 
     </div>
