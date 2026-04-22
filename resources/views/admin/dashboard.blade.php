@@ -4,6 +4,8 @@
 @section('page-title', 'Dashboard')
 
 @section('content')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
     .grid-container {
         display: flex;
@@ -14,18 +16,20 @@
         flex: 1;
         background: #ffffff;
         padding: 20px;
-        border-radius: 5px;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         display: flex;
         flex-direction: column;
         justify-content: center;
+        border-left: 5px solid #ececec;
     }
     .stat-title {
         color: #6b7280;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
         font-weight: bold;
-        font-size: 13px;
+        font-size: 12px;
         text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
     .stat-value {
         font-size: 22px;
@@ -33,6 +37,21 @@
         margin: 0;
         color: #111827;
     }
+
+    /* Container untuk Grafik */
+    .charts-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+        margin-bottom: 25px;
+    }
+    .chart-card {
+        background: #ffffff;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+
     .table-custom {
         width: 100%;
         border-collapse: collapse;
@@ -40,65 +59,83 @@
     .table-custom th, .table-custom td {
         padding: 15px;
         text-align: left;
-        border-bottom: 1px solid #eee;
+        border-bottom: 1px solid #f3f4f6;
     }
     .table-custom th {
         background: #f8fafc;
-        color: #111827;
-        font-weight: bold;
+        color: #475569;
+        font-weight: 700;
+        font-size: 13px;
     }
     .badge-fasilitas {
-        background: #e0e7ff;
-        color: #3730a3;
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 11px;
-        margin-right: 4px;
-        border: 1px solid #c7d2fe;
-    }
-    .status-pill {
-        padding: 5px 15px;
+        background: #f1f5f9;
+        color: #475569;
+        padding: 4px 10px;
         border-radius: 6px;
         font-size: 11px;
-        font-weight: bold;
+        margin-right: 4px;
+        border: 1px solid #e2e8f0;
+        display: inline-block;
+        margin-bottom: 2px;
+    }
+    .status-pill {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 800;
         color: white;
         text-transform: uppercase;
+        display: inline-block;
     }
-    /* Warna Status */
-    .prosess { background: #f59e0b; } /* Orange untuk proses cek */
-    .disetujui { background: #10b981; } /* Hijau untuk disetujui */
-    .selesai { background: #3b82f6; } /* Biru untuk selesai */
-    .batal { background: #ef4444; } /* Merah untuk batal */
+    .prosess { background: #f59e0b; }
+    .disetujui { background: #10b981; }
+    .selesai { background: #3b82f6; }
+    .batal { background: #ef4444; }
 </style>
 
 <div class="grid-container">
-    <div class="card-stat" style="border-top: 4px solid #3b82f6;">
+    <div class="card-stat" style="border-left-color: #3b82f6;">
         <div class="stat-title">Total Pendapatan</div>
         <div class="stat-value" style="color: #1e3a8a;">
             Rp {{ number_format($totalPendapatan ?? 0, 0, ',', '.') }}
         </div>
     </div>
 
-    <div class="card-stat" style="border-top: 4px solid #10b981;">
+    <div class="card-stat" style="border-left-color: #10b981;">
         <div class="stat-title">Total Fasilitas</div>
         <div class="stat-value">{{ $totalFasilitas ?? 0 }}</div>
     </div>
 
-    <div class="card-stat" style="border-top: 4px solid #6366f1;">
+    <div class="card-stat" style="border-left-color: #6366f1;">
         <div class="stat-title">Total Penyewaan</div>
         <div class="stat-value">{{ $totalPenyewaan ?? 0 }}</div>
     </div>
 
-    <div class="card-stat" style="border-top: 4px solid #f59e0b;">
-        <div class="stat-title">Pending</div>
+    <div class="card-stat" style="border-left-color: #f59e0b;">
+        <div class="stat-title">Perlu Cek (Pending)</div>
         <div class="stat-value" style="color: #f59e0b;">{{ $pending ?? 0 }}</div>
     </div>
 </div>
 
-<div class="card">
-    <h3 style="margin-bottom: 15px; font-size: 16px;">
-        Penyewaan Terbaru
-    </h3>
+<div class="charts-grid">
+    <div class="chart-card">
+        <h3 style="margin: 0 0 20px 0; font-size: 15px; color: #1f2937;">Ikhtisar Pendapatan (Bulanan)</h3>
+        <div style="height: 300px;">
+            <canvas id="revenueChart"></canvas>
+        </div>
+    </div>
+    <div class="chart-card">
+        <h3 style="margin: 0 0 20px 0; font-size: 15px; color: #1f2937;">Status Transaksi</h3>
+        <div style="height: 300px;">
+            <canvas id="statusChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="background: white; border-radius: 12px; padding: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+    <div style="padding: 20px;">
+        <h3 style="margin: 0; font-size: 15px; color: #1f2937;">Penyewaan Terbaru</h3>
+    </div>
     <table class="table-custom">
         <thead>
             <tr>
@@ -118,9 +155,9 @@
                     $statusBayar = strtolower($p->status_pembayaran);
                 @endphp
                 <tr>
-                    <td style="text-align: center; font-weight: bold;">{{ $loop->iteration }}</td>
+                    <td style="text-align: center; font-weight: bold; color: #64748b;">{{ $loop->iteration }}</td>
                     <td>
-                        <strong style="color: #111827;">{{ $p->user->name ?? $p->nama_penyewa }}</strong><br>
+                        <strong style="color: #1e293b; font-size: 14px;">{{ $p->user->name ?? $p->nama_penyewa }}</strong><br>
                         <small style="color: #94a3b8;">NIK: {{ $p->nik ?? '-' }}</small>
                     </td>
                     <td>
@@ -128,28 +165,108 @@
                             <span class="badge-fasilitas">{{ $item->fasilitas->nama_fasilitas ?? '-' }}</span>
                         @endforeach
                     </td>
-                    <td style="color: #4b5563;">{{ \Carbon\Carbon::parse($p->tgl_mulai)->format('d/m/Y') }}</td>
+                    <td style="color: #475569; font-size: 13px;">{{ \Carbon\Carbon::parse($p->tgl_mulai)->format('d M Y') }}</td>
                     
                     <td style="text-align: center;">
                         <span class="status-pill {{ $status }}">
-                            {{ $status == 'prosess' ? 'PERLU CEK' : $status }}
+                            {{ $status == 'proses' ? 'PERLU CEK' : $status }}
                         </span>
                     </td>
 
                     <td style="text-align: center;">
                         @if($statusBayar == 'lunas')
-                            <strong style="color: #10b981; font-size: 11px;">LUNAS</strong>
+                            <span style="color: #10b981; font-weight: 800; font-size: 11px;">
+                                <i class="fas fa-check-circle"></i> LUNAS
+                            </span>
                         @else
-                            <strong style="color: #ef4444; font-size: 11px;">PENDING</strong>
+                            <span style="color: #ef4444; font-weight: 800; font-size: 11px;">
+                                <i class="fas fa-clock"></i> PENDING
+                            </span>
                         @endif
                     </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" style="text-align: center; padding: 30px; color: #94a3b8;">Belum ada data penyewaan terbaru.</td>
+                    <td colspan="6" style="text-align: center; padding: 40px; color: #94a3b8;">Belum ada data penyewaan terbaru.</td>
                 </tr>
             @endforelse
         </tbody>
     </table>
 </div>
+
+<script>
+    // Konfigurasi Umum Chart
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.color = '#94a3b8';
+
+    // 1. Grafik Pendapatan REAL PER BULAN (Sinkron dengan Controller)
+    const dataPendapatan = {!! json_encode($dataGrafik ?? []) !!};
+    const namaBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const labelBulan = namaBulan.slice(0, dataPendapatan.length);
+
+    const ctxRevenue = document.getElementById('revenueChart').getContext('2d');
+    new Chart(ctxRevenue, {
+        type: 'line',
+        data: {
+            labels: labelBulan, 
+            datasets: [{
+                label: 'Pendapatan',
+                data: dataPendapatan,
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                fill: true,
+                tension: 0.4,
+                borderWidth: 3,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                pointBackgroundColor: '#3b82f6',
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Total: Rp ' + context.parsed.y.toLocaleString('id-ID');
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: { 
+                    beginAtZero: true,
+                    ticks: { callback: value => 'Rp ' + value.toLocaleString('id-ID') }
+                },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    // 2. Grafik Status Transaksi (Real-time sesuai statistik)
+    const ctxStatus = document.getElementById('statusChart').getContext('2d');
+    new Chart(ctxStatus, {
+        type: 'doughnut',
+        data: {
+            labels: ['Selesai/Disetujui', 'Pending/Proses'],
+            datasets: [{
+                data: [{{ ($totalPenyewaan ?? 0) - ($pending ?? 0) }}, {{ $pending ?? 0 }}],
+                backgroundColor: ['#10b981', '#f59e0b'],
+                borderWidth: 0,
+                hoverOffset: 10
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            cutout: '75%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { usePointStyle: true, padding: 25 }
+                }
+            }
+        }
+    });
+</script>
 @endsection

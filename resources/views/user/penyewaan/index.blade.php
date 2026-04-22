@@ -73,9 +73,9 @@
                     </td>
                     <td style="padding: 20px; border-bottom: 1px solid #f3f4f6; text-align: center;">
                         @if($status == 'disetujui')
-                            <a href="{{ route('user.pembayaran.index', ['id' => $p->id_penyewaan]) }}" 
-                               style="background: #10b981; color: white; text-decoration: none; font-weight: bold; font-size: 13px; padding: 8px 16px; border-radius: 6px; display: inline-block;">
-                               Bayar Sekarang
+                            <a href="{{ route('user.pembayaran.index', $p->id_penyewaan) }}"
+                                style="background: #10b981; color: white; text-decoration: none; font-weight: bold; font-size: 13px; padding: 8px 16px; border-radius: 6px; display: inline-block;">
+                                Bayar Sekarang
                             </a>
                         @else
                             <button disabled title="Menunggu persetujuan admin"

@@ -152,7 +152,7 @@
         <a href="{{ route('users.index') }}">Kelola User</a>
         <a href="{{ route('admin.penyewaan.index') }}">Kelola Booking</a>
         <a href="#">Kelola Pembayaran</a>
-        <a href="#">Kelola Pengembalian</a>
+        <a href="{{ route('admin.pengembalian') }}">Kelola Pengembalian</a>
         <a href="/">Logout</a>
     </div>
 
@@ -169,9 +169,11 @@
                     <span class="profile-role">Administrator</span>
                 </div>
 
-                <img src="https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->name) }}&background=2563eb&color=fff"
-                     alt="Avatar"
-                     class="profile-avatar">
+                <img src="{{ auth()->user()->photo 
+                    ? asset('storage/' . auth()->user()->photo) . '?v=' . time()
+                    : 'https://ui-avatars.com/api/?name='.urlencode(auth()->user()->name).'&background=2563eb&color=fff' }}"
+                    alt="Avatar"
+                    class="profile-avatar">
             </a>
         </div>
 

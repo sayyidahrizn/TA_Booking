@@ -27,11 +27,12 @@
     text-decoration:none;
     font-size:13px;
     display:inline-block;
+    border: none;
+    cursor: pointer;
 }
 .btn-add{
     background:#2563eb;
     color:white;
-    margin-bottom:15px;
 }
 
 /* ================= ICON BUTTON ================= */
@@ -116,6 +117,36 @@
 .pagination-container .hidden.sm\:flex-1 {
     display: none !important;
 }
+
+/* ================= FITUR TAMBAHAN (SEARCH & FILTER) ================= */
+.header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+.search-filter-wrapper {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+.input-control {
+    padding: 7px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 14px;
+    outline: none;
+}
+.btn-report {
+    background: #059669;
+    color: white;
+}
+.btn-search {
+    background: #4b5563;
+    color: white;
+}
 </style>
 
 {{-- NOTIFIKASI --}}
@@ -131,9 +162,34 @@
 </div>
 @endif
 
-<a href="{{ route('users.create') }}" class="btn btn-add">
-    + Tambah User
-</a>
+<div class="header-actions">
+    <div class="left-btns">
+        <a href="{{ route('users.create') }}" class="btn btn-add">
+            + Tambah User
+        </a>
+        <a href="{{ route('users.laporan') }}" class="btn btn-report">
+            <i class="fa-solid fa-file-pdf"></i> Laporan
+        </a>
+    </div>
+
+    <form action="{{ route('users.index') }}" method="GET" class="search-filter-wrapper">
+        <select name="role" class="input-control">
+            <option value="">Semua Role</option>
+            <option value="kaur" {{ request('role') == 'kaur' ? 'selected' : '' }}>Admin</option>
+            <option value="penyewa" {{ request('role') == 'penyewa' ? 'selected' : '' }}>Penyewa</option>
+        </select>
+        
+        <input type="text" name="search" class="input-control" placeholder="Cari Nama atau NIK..." value="{{ request('search') }}">
+        
+        <button type="submit" class="btn btn-search">
+            <i class="fa-solid fa-magnifying-glass"></i> Cari
+        </button>
+
+        @if(request('search') || request('role'))
+            <a href="{{ route('users.index') }}" class="btn" style="background:#9ca3af; color:white;">Reset</a>
+        @endif
+    </form>
+</div>
 
 <div class="card">
     <table class="table">
@@ -194,7 +250,7 @@
 
 {{-- Tombol Navigasi Halaman --}}
 <div class="pagination-container">
-    {{ $users->links('pagination::bootstrap-4') }}
+    {{ $users->appends(request()->query())->links('pagination::bootstrap-4') }}
 </div>
 
 <script>

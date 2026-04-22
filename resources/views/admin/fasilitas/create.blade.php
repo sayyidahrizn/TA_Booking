@@ -101,6 +101,12 @@
         </div>
 
         <div class="form-group">
+            <label>Jumlah</label>
+            <input type="number" name="jumlah" min="1" value="1" required>
+            <small>Tentukan jumlah stok/unit (meja, kursi, dll)</small>
+        </div>
+
+        <div class="form-group">
             <label>Harga Sewa</label>
             <input type="text" id="harga_sewa_view" placeholder="Contoh: 1.000.000" required>
             <input type="hidden" name="harga_sewa" id="harga_sewa">

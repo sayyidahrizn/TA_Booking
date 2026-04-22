@@ -183,9 +183,11 @@
                     <div class="user-status">Pengunjung Aktif</div>
                 </div>
 
-                <img src="https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->name) }}&background=2563eb&color=fff"
-                     class="nav-avatar"
-                     alt="Avatar">
+                <img src="{{ auth()->user()->photo 
+                    ? asset('storage/' . auth()->user()->photo) . '?v=' . time()
+                    : 'https://ui-avatars.com/api/?name='.urlencode(auth()->user()->name).'&background=2563eb&color=fff' }}"
+                    class="nav-avatar"
+                    alt="Avatar">
             </a>
         </div>
 

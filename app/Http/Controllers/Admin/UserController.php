@@ -4,15 +4,35 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Fasilitas;
+use App\Models\Penyewaan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $users = User::orderBy('created_at', 'desc')->paginate(10);
+        $query = User::query();
+
+        // Fitur Filter Berdasarkan Role
+        if ($request->filled('role')) {
+            $query->where('role', $request->role);
+        }
+
+        // Fitur Search Berdasarkan Nama atau NIK
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('nik', 'like', "%{$search}%");
+            });
+        }
+
+        // Mengurutkan berdasarkan yang terbaru dan pagination
+        $users = $query->orderBy('created_at', 'desc')->paginate(10);
+        
         return view('admin.users.index', compact('users'));
     }
 
@@ -88,6 +108,33 @@ class UserController extends Controller
         return back()->with('success', 'User berhasil dihapus');
     }
 
+    // ================= FITUR LAPORAN TERPADU =================
+    public function laporan()
+    {
+        // Statistik Utama
+        $total_fasilitas = Fasilitas::count();
+        
+        // 1. Fasilitas Disewa (Menghitung yang sudah disetujui atau sudah selesai)
+        $fasilitas_disewa = Penyewaan::whereIn('status_sewa', ['disetujui', 'selesai'])->count();
+        
+        // 2. Booking Pending (Di database kamu namanya 'proses')
+        $booking_pending = Penyewaan::where('status_sewa', 'proses')->count();
+        
+        // 3. Total Pendapatan (Menghitung total_harga yang status_pembayarannya 'lunas')
+        $total_pendapatan = Penyewaan::where('status_pembayaran', 'lunas')->sum('total_harga');
+
+        // Data User untuk Tabel
+        $users = User::orderBy('name', 'asc')->get();
+
+        return view('admin.users.laporan', compact(
+            'users', 
+            'total_fasilitas', 
+            'fasilitas_disewa', 
+            'booking_pending', 
+            'total_pendapatan'
+        ));
+    }
+
     // ================= PROFIL ADMIN =================
     public function profile()
     {
@@ -115,5 +162,13 @@ class UserController extends Controller
 
         return redirect()->route('admin.profile')
             ->with('success', 'Profil berhasil diperbarui!');
+    }
+
+    /**
+     * Mencegah error "Too Many Redirects" dengan arah ke index
+     */
+    public function show($id)
+    {
+        return redirect()->route('users.index');
     }
 }

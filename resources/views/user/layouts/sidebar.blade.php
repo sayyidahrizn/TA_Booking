@@ -22,8 +22,8 @@
     </a>
 
     {{-- Menu Pengembalian (sementara belum aktif) --}}
-    <a href="#"
-       onclick="">
+    <a href="{{ route('user.pengembalian') }}"
+       class="{{ request()->is('user/pengembalian') ? 'active' : '' }}">
         Pengembalian
     </a>
 

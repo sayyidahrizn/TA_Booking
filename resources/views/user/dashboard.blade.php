@@ -32,14 +32,16 @@
         </div>
         
         <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; min-width: 700px;">
+            <table style="width: 100%; border-collapse: collapse; min-width: 900px;">
                 <thead>
                     <tr style="text-align: left; background: #fff;">
                         <th style="padding: 15px 25px; color: #a0aec0; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #edf2f7; width: 50px;">No</th>
                         <th style="padding: 15px 25px; color: #a0aec0; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #edf2f7;">Fasilitas</th>
                         <th style="padding: 15px 25px; color: #a0aec0; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #edf2f7; text-align: center;">Tanggal Mulai</th>
-                        <th style="padding: 15px 25px; color: #a0aec0; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #edf2f7; text-align: center;">Status Admin</th>
+                        <th style="padding: 15px 25px; color: #a0aec0; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #edf2f7; text-align: center;">Total Harga</th>
+                        <th style="padding: 15px 25px; color: #a0aec0; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #edf2f7; text-align: center;">Status Sewa</th>
                         <th style="padding: 15px 25px; color: #a0aec0; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #edf2f7; text-align: center;">Pembayaran</th>
+                        <th style="padding: 15px 25px; color: #a0aec0; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #edf2f7; text-align: center;">Pengembalian</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -48,11 +50,14 @@
                             $p = $group->first(); 
                             $statusSewa = strtolower($p->status_sewa);
                             $statusBayar = strtolower($p->status_pembayaran);
+                            
+                            $totalHargaSewa = $group->sum('total_harga'); 
+                            $dataKembali = $p->pengembalian; 
+                            $totalDenda = $dataKembali ? $dataKembali->total_denda : 0;
+                            $grandTotal = $totalHargaSewa + $totalDenda;
                         @endphp
                         <tr style="border-bottom: 1px solid #f7fafc;">
-                            <td style="padding: 20px 25px; font-size: 14px; color: #718096; font-weight: 600;">
-                                {{ $loop->iteration }}
-                            </td>
+                            <td style="padding: 20px 25px; font-size: 14px; color: #718096; font-weight: 600;">{{ $loop->iteration }}</td>
                             <td style="padding: 20px 25px;">
                                 <div style="display: flex; flex-wrap: wrap; gap: 5px;">
                                     @foreach($group as $item)
@@ -66,6 +71,12 @@
                                 {{ \Carbon\Carbon::parse($p->tgl_mulai)->format('d M Y') }}
                             </td>
                             <td style="padding: 20px 25px; text-align: center;">
+                                <div style="font-size: 14px; font-weight: 700; color: #2d3748;">Rp{{ number_format($grandTotal, 0, ',', '.') }}</div>
+                                @if($totalDenda > 0)
+                                    <small style="color: #e53e3e; font-size: 10px;">+ Denda: Rp{{ number_format($totalDenda, 0, ',', '.') }}</small>
+                                @endif
+                            </td>
+                            <td style="padding: 20px 25px; text-align: center;">
                                 @if($statusSewa == 'disetujui')
                                     <span style="background: #c6f6d5; color: #22543d; padding: 5px 12px; border-radius: 50px; font-size: 10px; font-weight: 700; text-transform: uppercase;">✔ Disetujui</span>
                                 @else
@@ -74,16 +85,28 @@
                             </td>
                             <td style="padding: 20px 25px; text-align: center;">
                                 @if(in_array($statusBayar, ['lunas', 'dibayar']))
-                                    <span style="background: #38a169; color: white; padding: 5px 12px; border-radius: 8px; font-size: 10px; font-weight: 800; box-shadow: 0 2px 5px rgba(56, 161, 105, 0.2);">LUNAS</span>
+                                    <span style="background: #38a169; color: white; padding: 5px 12px; border-radius: 8px; font-size: 10px; font-weight: 800;">LUNAS</span>
                                 @else
                                     <span style="background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; padding: 5px 12px; border-radius: 8px; font-size: 10px; font-weight: 800;">PENDING</span>
                                 @endif
                             </td>
+                            <td style="padding: 20px 25px; text-align: center;">
+                                @if($dataKembali)
+                                    @php $sv = strtolower($dataKembali->status_validasi); @endphp
+                                    @if($sv == 'disetujui')
+                                        <span style="color: #38a169; font-size: 11px; font-weight: 700;">DIKEMBALIKAN</span>
+                                    @elseif($sv == 'ditolak')
+                                        <span style="color: #e53e3e; font-size: 11px; font-weight: 700;">DITOLAK</span>
+                                    @else
+                                        <span style="color: #2b6cb0; font-size: 11px; font-weight: 700;">VALIDASI</span>
+                                    @endif
+                                @else
+                                    <span style="color: #a0aec0; font-size: 11px; font-weight: 500; font-style: italic;">Belum Kembali</span>
+                                @endif
+                            </td>
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="5" style="padding: 50px; text-align: center; color: #a0aec0; font-style: italic;">Belum ada data penyewaan.</td>
-                        </tr>
+                        <tr><td colspan="7" style="padding: 50px; text-align: center; color: #a0aec0;">Belum ada data penyewaan.</td></tr>
                     @endforelse
                 </tbody>
             </table>

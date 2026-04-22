@@ -140,6 +140,16 @@
 <textarea name="deskripsi">{{ $fasilitas->deskripsi }}</textarea>
 </div>
 
+{{-- BAGIAN JUMLAH YANG DITAMBAHKAN --}}
+<div class="form-group">
+<label>Jumlah</label>
+<input type="number" 
+       name="jumlah" 
+       value="{{ $fasilitas->jumlah }}" 
+       min="1" 
+       required>
+</div>
+
 
 <div class="form-group">
 <label>Harga Sewa</label>
