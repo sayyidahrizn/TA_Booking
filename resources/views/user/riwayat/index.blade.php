@@ -12,7 +12,8 @@
         <table style="width: 100%; border-collapse: separate; border-spacing: 0; background: white;">
             <thead>
                 <tr style="background: #1e3a8a;">
-                    <th style="padding: 15px 20px; color: #ffffff; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-radius: 8px 0 0 8px;">Fasilitas</th>
+                    <th style="padding: 15px 20px; color: #ffffff; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; border-radius: 8px 0 0 8px; text-align: center;">No</th>
+                    <th style="padding: 15px 20px; color: #ffffff; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;">Fasilitas</th>
                     <th style="padding: 15px 20px; color: #ffffff; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; text-align: center;">Tanggal Pinjam</th>
                     <th style="padding: 15px 20px; color: #ffffff; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; text-align: right;">Total Harga</th>
                     <th style="padding: 15px 20px; color: #ffffff; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; text-align: center; border-radius: 0 8px 8px 0;">Status Akhir</th>
@@ -23,12 +24,21 @@
                 @php 
                     $first = $group->first(); 
                     $totalHargaGrup = $group->sum('total_harga');
-                    $isApproved = $first->status_sewa == 'disetujui';
-                    $bgColor = $isApproved ? '#dcfce7' : '#fee2e2';
-                    $textColor = $isApproved ? '#166534' : '#991b1b';
-                    $dotColor = $isApproved ? '#22c55e' : '#ef4444';
+                    
+                    // Logika Status: Sukses jika disetujui/selesai, selain itu merah
+                    $isSuccess = in_array($first->status_sewa, ['disetujui', 'selesai']);
+                    
+                    $bgColor = $isSuccess ? '#dcfce7' : '#fee2e2';
+                    $textColor = $isSuccess ? '#166534' : '#991b1b';
+                    $dotColor = $isSuccess ? '#22c55e' : '#ef4444';
+
+                    // Label teks: Jika status pengembalian sudah selesai, tampilkan "SELESAI"
+                    $labelStatus = ($first->status_pengembalian == 'selesai') ? 'SELESAI' : strtoupper($first->status_sewa);
                 @endphp
                 <tr style="transition: background 0.2s;" onmouseover="this.style.backgroundColor='#f9fafb'" onmouseout="this.style.backgroundColor='transparent'">
+                    <td style="padding: 20px; border-bottom: 1px solid #f3f4f6; text-align: center; font-weight: 600; color: #64748b;">
+                        {{ $loop->iteration }}
+                    </td>
                     <td style="padding: 20px; border-bottom: 1px solid #f3f4f6;">
                         <div style="display: flex; flex-wrap: wrap; gap: 6px;">
                             @foreach($group as $item)
@@ -52,13 +62,13 @@
                     <td style="padding: 20px; border-bottom: 1px solid #f3f4f6; text-align: center;">
                         <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 9999px; font-size: 11px; font-weight: 800; text-transform: uppercase; background: {{ $bgColor }}; color: {{ $textColor }}; border: 1px solid rgba(0,0,0,0.05);">
                             <span style="width: 6px; height: 6px; border-radius: 50%; background: {{ $dotColor }};"></span>
-                            {{ $first->status_sewa }}
+                            {{ $labelStatus }}
                         </span>
                     </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="4" style="padding: 50px; text-align: center; color: #9ca3af; font-style: italic;">
+                    <td colspan="5" style="padding: 50px; text-align: center; color: #9ca3af; font-style: italic;">
                         Tidak ada riwayat penyewaan yang ditemukan.
                     </td>
                 </tr>

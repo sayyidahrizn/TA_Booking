@@ -73,13 +73,23 @@ class PengembalianController extends Controller
                     'status_pembayaran_denda' => $total_denda > 0 ? 'pending' : 'lunas',
                 ]);
 
-                // Update Status di Tabel Penyewaan
+                /**
+                 * PERBAIKAN LOGIKA:
+                 * Selain update status_pengembalian, kita juga update status_sewa menjadi 'selesai'.
+                 * Ini agar Dashboard Admin mendeteksi bahwa transaksi ini sudah ditutup (Biru).
+                 */
                 if ($total_denda > 0) {
-                    // Jika ada denda, status gantung agar user bayar dulu
-                    $item->penyewaan->update(['status_pengembalian' => 'denda_pending']);
+                    // Jika ada denda, status pengembalian denda_pending, namun transaksi sewa tetap selesai
+                    $item->penyewaan->update([
+                        'status_pengembalian' => 'denda_pending',
+                        'status_sewa' => 'selesai' 
+                    ]);
                 } else {
-                    // Jika denda 0, langsung lunas/selesai
-                    $item->penyewaan->update(['status_pengembalian' => 'selesai']);
+                    // Jika denda 0, langsung lunas/selesai secara total
+                    $item->penyewaan->update([
+                        'status_pengembalian' => 'selesai',
+                        'status_sewa' => 'selesai'
+                    ]);
                 }
             }
 

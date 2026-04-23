@@ -11,14 +11,31 @@ use Illuminate\Support\Facades\DB;
 class PenyewaanController extends Controller
 {
     /**
-     * DASHBOARD ADMIN - Tetap dengan fitur Statistik & Grafik
+     * DASHBOARD ADMIN - Fitur Statistik, Grafik & Data Otomatis
      */
     public function dashboard()
     {
+        // 1. Total Pendapatan
         $totalPendapatan = Penyewaan::where('status_pembayaran', 'lunas')
             ->orWhere('status_sewa', 'disetujui')
             ->sum('total_harga');
 
+        // 2. Statistik Tambahan (Otomatis)
+        $totalFasilitas = Fasilitas::count();
+        $totalPenyewaan = Penyewaan::count();
+        
+        // Logika Fasilitas Kembali: Hitung yang sudah mengisi form pengembalian (has pengembalian) 
+        // atau status_sewa sudah selesai
+        $totalKembali = Penyewaan::where('status_sewa', 'selesai')
+            ->orWhereHas('pengembalian')
+            ->count();
+        
+        $pending = Penyewaan::where('status_sewa', 'proses')
+            ->get()
+            ->groupBy('kode_booking')
+            ->count();
+
+        // 3. Logika Grafik Pendapatan
         $pendapatanBulanan = Penyewaan::select(
                 DB::raw('SUM(total_harga) as total'),
                 DB::raw('MONTH(tgl_mulai) as bulan')
@@ -39,22 +56,21 @@ class PenyewaanController extends Controller
             $dataGrafik[] = $pendapatanBulanan[$i] ?? 0;
         }
 
-        $totalFasilitas = Fasilitas::count();
-        $totalPenyewaan = Penyewaan::count();
-        
-        $pending = Penyewaan::where('status_sewa', 'proses')
-            ->get()
-            ->groupBy('kode_booking')
-            ->count();
-
-        $penyewaan = Penyewaan::with(['user','fasilitas'])
+        // 4. Data Tabel Penyewaan Terbaru - Load relasi 'pengembalian' untuk deteksi di blade
+        $penyewaan = Penyewaan::with(['user', 'fasilitas', 'pengembalian'])
             ->latest()
             ->get()
             ->groupBy('kode_booking')
             ->take(5);
 
         return view('admin.dashboard', compact(
-            'totalPendapatan', 'totalFasilitas', 'totalPenyewaan', 'pending', 'penyewaan', 'dataGrafik'
+            'totalPendapatan', 
+            'totalFasilitas', 
+            'totalKembali', 
+            'totalPenyewaan', 
+            'pending', 
+            'penyewaan', 
+            'dataGrafik'
         ));
     }
 
@@ -69,9 +85,6 @@ class PenyewaanController extends Controller
         return view('admin.penyewaan.index', compact('penyewaan'));
     }
 
-    /**
-     * KONFIRMASI GROUP - Menyetujui semua item
-     */
     public function konfirmasiGroup($kode)
     {
         DB::transaction(function () use ($kode) {
@@ -83,7 +96,6 @@ class PenyewaanController extends Controller
                     'status_sewa' => 'disetujui'
                 ]);
 
-                // Update status fasilitas hanya jika stoknya benar-benar habis (0)
                 $fasilitas = Fasilitas::find($item->id_fasilitas);
                 if ($fasilitas && $fasilitas->jumlah <= 0) {
                     $fasilitas->update(['status_fasilitas' => 'tidak tersedia']);
@@ -94,22 +106,16 @@ class PenyewaanController extends Controller
         return back()->with('success', 'Semua booking dengan kode ' . $kode . ' berhasil disetujui!');
     }
 
-    /**
-     * TOLAK GROUP - Membatalkan & Mengembalikan Stok
-     */
     public function tolakGroup($kode)
     {
         DB::transaction(function () use ($kode) {
             $data = Penyewaan::where('kode_booking', $kode)->get();
 
             foreach ($data as $item) {
-                // Kembalikan stok jika status sebelumnya bukan 'batal'
                 if ($item->status_sewa !== 'batal') {
                     $fasilitas = Fasilitas::find($item->id_fasilitas);
                     if ($fasilitas) {
                         $fasilitas->increment('jumlah', $item->jumlah_sewa);
-                        
-                        // Aktifkan kembali status jika stok bertambah
                         if ($fasilitas->jumlah > 0) {
                             $fasilitas->update(['status_fasilitas' => 'tersedia']);
                         }
@@ -119,7 +125,7 @@ class PenyewaanController extends Controller
             }
         });
 
-        return back()->with('success', 'Semua booking dengan kode ' . $kode . ' telah ditolak dan stok dikembalikan.');
+        return back()->with('success', 'Semua booking dengan kode ' . $kode . ' telah ditolak.');
     }
 
     public function destroy($id)

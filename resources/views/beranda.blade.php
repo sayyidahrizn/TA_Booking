@@ -9,15 +9,13 @@
 
     <style>
         /* SMOOTH SCROLL */
-        html {
-            scroll-behavior: smooth;
-        }
+        html { scroll-behavior: smooth; }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
         body { background-color: #f8fafc; color: #334155; line-height: 1.4; }
         a { text-decoration: none; color: inherit; }
 
-        /* NAVBAR */
+        /* NAVBAR - KEMBALI KE DESAIN AWAL YANG RAPI */
         .navbar { 
             width: 100%; 
             background: #ffffff; 
@@ -66,7 +64,7 @@
             font-size: 12px;
         }
 
-        /* HERO SECTION - SATU FOTO */
+        /* HERO SECTION */
         .hero { 
             padding: 80px 15px; 
             background: #1e3a8a; 
@@ -99,14 +97,7 @@
             border: 4px solid rgba(255,255,255,0.1);
         }
 
-        @media (max-width: 768px) {
-            .hero-container { flex-direction: column; text-align: center; }
-            .hero-image { margin-top: 30px; }
-            .hero-btns { justify-content: center; }
-            .hero-text h1 { font-size: 28px; }
-        }
-
-        /* BAGIAN LAINNYA TETAP */
+        /* FASILITAS */
         .content-section { padding: 40px 15px; max-width: 1000px; margin: auto; text-align: center; }
         .section-title h2 { font-size: 18px; color: #1e3a8a; margin-bottom: 25px; text-transform: uppercase; letter-spacing: 1px; }
 
@@ -124,28 +115,79 @@
             text-align: left;
             transition: 0.3s;
         }
-        .card:hover { transform: translateY(-3px); }
         .card img { width: 100%; height: 85px; object-fit: cover; border-radius: 4px; margin-bottom: 5px; }
         .card h3 { font-size: 11px; color: #1e3a8a; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .card .price { font-size: 11px; font-weight: bold; color: #f97316; }
 
+        /* ============================================================ */
+        /* FIX KALENDER: NGEBLOCK TOTAL, BERSIH, & MULTIPLE TEXT        */
+        /* ============================================================ */
         .calendar-wrapper { 
             background: white; 
-            padding: 10px; 
-            border-radius: 10px; 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05); 
-            max-width: 750px;
+            padding: 20px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+            max-width: 850px;
             margin: auto;
         }
-        .fc .fc-toolbar-title { font-size: 14px !important; color: #1e3a8a; }
-        .fc .fc-button { padding: 2px 6px !important; font-size: 10px !important; }
-        .fc .fc-col-header-cell-cushion { font-size: 10px; color: #64748b; }
-        .fc .fc-daygrid-day-number { font-size: 10px; padding: 4px !important; }
 
-        .custom-event { display: flex; align-items: center; gap: 4px; padding: 1px 2px; font-size: 10px; line-height: 1.1; }
-        .event-circle { min-width: 6px; height: 6px; background-color: #f97316; border-radius: 50%; display: inline-block; }
-        .event-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #1e3a8a; font-weight: 500; }
-        .fc-v-event, .fc-h-event { background-color: transparent !important; border: none !important; }
+        .fc .fc-daygrid-day-frame {
+            min-height: 100px !important;
+            position: relative;
+        }
+
+        /* Warna Block Penuh Oranye */
+        .fc-daygrid-bg-harness {
+            background-color: #915dda !important;
+            z-index: 1;
+        }
+
+        /* SEMBUNYIKAN SEMUA TEKS BAWAAN (BAYANGAN DI POJOK) */
+        .fc-daygrid-event-harness, .fc-daygrid-event, .fc-event, .fc-event-main {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+        }
+
+        /* NOMOR TANGGAL TETAP DI ATAS */
+        .fc .fc-daygrid-day-top {
+            position: relative;
+            z-index: 10; 
+            justify-content: flex-end;
+        }
+        .fc .fc-daygrid-day-number {
+            font-weight: bold;
+            padding: 8px !important;
+            color: #334155;
+            text-decoration: none !important;
+        }
+        .is-booked .fc-daygrid-day-number {
+            color: #ffffff !important;
+        }
+
+        /* KONTAINER TEKS CUSTOM DI TENGAH */
+        .custom-center-text-container {
+            position: absolute;
+            top: 55%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 95%;
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            pointer-events: none;
+        }
+
+        .item-text {
+            color: #ffffff !important;
+            font-size: 10px;
+            font-weight: 900;
+            text-align: center;
+            text-transform: uppercase;
+            line-height: 1.1;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
 
         .footer { background: #1e3a8a; color: white; padding: 15px; text-align: center; font-size: 11px; margin-top: 30px; }
     </style>
@@ -224,31 +266,38 @@
                 initialView: 'dayGridMonth',
                 locale: 'id',
                 height: 'auto',
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: ''
-                },
+                headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
                 events: [
                     @foreach($jadwal as $j)
                     {
-                        title: '{{ $j->nama_kegiatan ?? ($j->fasilitas->nama_fasilitas ?? "Penyewaan") }}',
+                        title: '{{ $j->nama_kegiatan ?? ($j->fasilitas->nama_fasilitas ?? "DIPESAN") }}',
                         start: '{{ $j->tgl_mulai }}',
                         end: '{{ \Carbon\Carbon::parse($j->tgl_selesai)->addDay()->format("Y-m-d") }}',
+                        display: 'background'
                     },
                     @endforeach
                 ],
-                eventContent: function(arg) {
-                    let container = document.createElement('div');
-                    container.className = 'custom-event';
-                    let circle = document.createElement('span');
-                    circle.className = 'event-circle';
-                    let text = document.createElement('span');
-                    text.className = 'event-text';
-                    text.innerText = arg.event.title;
-                    container.appendChild(circle);
-                    container.appendChild(text);
-                    return { domNodes: [container] };
+                eventDidMount: function(info) {
+                    if (info.event.display === 'background') {
+                        let cell = info.el.closest('.fc-daygrid-day');
+                        if (cell) {
+                            cell.classList.add('is-booked');
+                            let frame = cell.querySelector('.fc-daygrid-day-frame');
+                            let container = frame.querySelector('.custom-center-text-container');
+                            if (!container) {
+                                container = document.createElement('div');
+                                container.className = 'custom-center-text-container';
+                                frame.appendChild(container);
+                            }
+                            let existingItems = Array.from(container.querySelectorAll('.item-text')).map(el => el.innerText);
+                            if (!existingItems.includes(info.event.title)) {
+                                let textDiv = document.createElement('div');
+                                textDiv.className = 'item-text';
+                                textDiv.innerText = info.event.title;
+                                container.appendChild(textDiv);
+                            }
+                        }
+                    }
                 }
             });
             calendar.render();

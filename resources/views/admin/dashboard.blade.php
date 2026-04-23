@@ -11,9 +11,11 @@
         display: flex;
         gap: 20px;
         margin-bottom: 20px;
+        flex-wrap: wrap;
     }
     .grid-container .card-stat {
         flex: 1;
+        min-width: 200px;
         background: #ffffff;
         padding: 20px;
         border-radius: 12px;
@@ -27,7 +29,7 @@
         color: #6b7280;
         margin-bottom: 8px;
         font-weight: bold;
-        font-size: 12px;
+        font-size: 11px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
@@ -38,7 +40,6 @@
         color: #111827;
     }
 
-    /* Container untuk Grafik */
     .charts-grid {
         display: grid;
         grid-template-columns: 2fr 1fr;
@@ -87,7 +88,7 @@
         text-transform: uppercase;
         display: inline-block;
     }
-    .prosess { background: #f59e0b; }
+    .proses { background: #f59e0b; }
     .disetujui { background: #10b981; }
     .selesai { background: #3b82f6; }
     .batal { background: #ef4444; }
@@ -106,13 +107,18 @@
         <div class="stat-value">{{ $totalFasilitas ?? 0 }}</div>
     </div>
 
+    <div class="card-stat" style="border-left-color: #8b5cf6;">
+        <div class="stat-title">Fasilitas Kembali</div>
+        <div class="stat-value" style="color: #6d28d9;">{{ $totalKembali ?? 0 }}</div>
+    </div>
+
     <div class="card-stat" style="border-left-color: #6366f1;">
         <div class="stat-title">Total Penyewaan</div>
         <div class="stat-value">{{ $totalPenyewaan ?? 0 }}</div>
     </div>
 
     <div class="card-stat" style="border-left-color: #f59e0b;">
-        <div class="stat-title">Perlu Cek (Pending)</div>
+        <div class="stat-title">Cek Booking (Pending)</div>
         <div class="stat-value" style="color: #f59e0b;">{{ $pending ?? 0 }}</div>
     </div>
 </div>
@@ -145,6 +151,7 @@
                 <th>Tanggal Mulai</th>
                 <th style="text-align: center;">Status Fasilitas</th>
                 <th style="text-align: center;">Pembayaran</th>
+                <th style="text-align: center;">Pengembalian</th> 
             </tr>
         </thead>
         <tbody>
@@ -184,10 +191,23 @@
                             </span>
                         @endif
                     </td>
+
+                    <td style="text-align: center;">
+                        {{-- Logika: Jika status sudah 'selesai' ATAU user sudah mengirim data pengembalian --}}
+                        @if($status == 'selesai' || $p->pengembalian)
+                            <span style="color: #3b82f6; font-weight: 800; font-size: 11px;">
+                                <i class="fas fa-undo-alt"></i> DIKEMBALIKAN
+                            </span>
+                        @else
+                            <span style="color: #94a3b8; font-weight: 800; font-size: 11px;">
+                                <i class="fas fa-history"></i> BELUM
+                            </span>
+                        @endif
+                    </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" style="text-align: center; padding: 40px; color: #94a3b8;">Belum ada data penyewaan terbaru.</td>
+                    <td colspan="7" style="text-align: center; padding: 40px; color: #94a3b8;">Belum ada data penyewaan terbaru.</td>
                 </tr>
             @endforelse
         </tbody>
@@ -195,13 +215,11 @@
 </div>
 
 <script>
-    // Konfigurasi Umum Chart
     Chart.defaults.font.family = "'Inter', sans-serif";
     Chart.defaults.color = '#94a3b8';
 
-    // 1. Grafik Pendapatan REAL PER BULAN (Sinkron dengan Controller)
     const dataPendapatan = {!! json_encode($dataGrafik ?? []) !!};
-    const namaBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const namaBulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
     const labelBulan = namaBulan.slice(0, dataPendapatan.length);
 
     const ctxRevenue = document.getElementById('revenueChart').getContext('2d');
@@ -217,34 +235,20 @@
                 fill: true,
                 tension: 0.4,
                 borderWidth: 3,
-                pointRadius: 5,
-                pointHoverRadius: 7,
+                pointRadius: 4,
                 pointBackgroundColor: '#3b82f6',
             }]
         },
         options: {
             maintainAspectRatio: false,
-            plugins: { 
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return 'Total: Rp ' + context.parsed.y.toLocaleString('id-ID');
-                        }
-                    }
-                }
-            },
+            plugins: { legend: { display: false } },
             scales: {
-                y: { 
-                    beginAtZero: true,
-                    ticks: { callback: value => 'Rp ' + value.toLocaleString('id-ID') }
-                },
+                y: { beginAtZero: true, ticks: { callback: value => 'Rp ' + value.toLocaleString('id-ID') } },
                 x: { grid: { display: false } }
             }
         }
     });
 
-    // 2. Grafik Status Transaksi (Real-time sesuai statistik)
     const ctxStatus = document.getElementById('statusChart').getContext('2d');
     new Chart(ctxStatus, {
         type: 'doughnut',
@@ -254,18 +258,12 @@
                 data: [{{ ($totalPenyewaan ?? 0) - ($pending ?? 0) }}, {{ $pending ?? 0 }}],
                 backgroundColor: ['#10b981', '#f59e0b'],
                 borderWidth: 0,
-                hoverOffset: 10
             }]
         },
         options: {
             maintainAspectRatio: false,
             cutout: '75%',
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { usePointStyle: true, padding: 25 }
-                }
-            }
+            plugins: { legend: { position: 'bottom' } }
         }
     });
 </script>

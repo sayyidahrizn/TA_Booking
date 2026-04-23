@@ -26,7 +26,7 @@ class PenyewaanController extends Controller
 
     public function dashboard()
     {
-        // PERBAIKAN: Menambahkan 'pengembalian' dalam with()
+        // Perbaikan: Hapus filter status_pengembalian agar data yang sudah selesai tetap tampil di list terbaru
         $penyewaan = Penyewaan::with(['fasilitas', 'pengembalian'])
             ->where('id_user', Auth::id())
             ->latest()
@@ -35,8 +35,11 @@ class PenyewaanController extends Controller
             ->take(5);
 
         $totalPenyewaan = Penyewaan::where('id_user', Auth::id())->count();
+        
+        // Tetap menghitung penyewaan aktif (yang belum selesai) untuk statistik box
         $penyewaanAktif = Penyewaan::where('id_user', Auth::id())
             ->whereIn('status_sewa', ['proses', 'disetujui'])
+            ->where('status_pengembalian', '!=', 'selesai')
             ->count();
 
         return view('user.dashboard', compact('penyewaan', 'totalPenyewaan', 'penyewaanAktif'));
@@ -44,10 +47,10 @@ class PenyewaanController extends Controller
 
     public function index()
     {
-        // PERBAIKAN: Menambahkan 'pengembalian' dalam with()
+        // Perbaikan: Menampilkan semua penyewaan (proses, disetujui, dan selesai) agar tidak hilang dari daftar
         $data = Penyewaan::with(['fasilitas', 'pengembalian'])
             ->where('id_user', Auth::id())
-            ->whereIn('status_sewa', ['proses', 'disetujui'])
+            ->whereIn('status_sewa', ['proses', 'disetujui', 'selesai'])
             ->latest()
             ->get()
             ->groupBy('kode_booking');
@@ -57,10 +60,13 @@ class PenyewaanController extends Controller
 
     public function riwayat()
     {
-        // PERBAIKAN: Menambahkan 'pengembalian' dalam with()
+        // Menampilkan daftar penyewaan yang sudah selesai atau final
         $data = Penyewaan::with(['fasilitas', 'pengembalian'])
             ->where('id_user', Auth::id())
-            ->whereNotIn('status_sewa', ['proses', 'disetujui'])
+            ->where(function($query) {
+                $query->whereIn('status_sewa', ['selesai', 'batal'])
+                      ->orWhere('status_pengembalian', 'selesai'); // Muncul di riwayat jika sudah kembali
+            })
             ->latest()
             ->get()
             ->groupBy('kode_booking');
