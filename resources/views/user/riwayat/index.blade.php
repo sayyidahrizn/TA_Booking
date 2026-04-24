@@ -1,12 +1,12 @@
 @extends('user.layouts.app')
 
+{{-- Bagian ini akan tampil di Topbar sebelah kiri, sejajar dengan profil --}}
+@section('page_title_content')
+    <h1 style="margin: 0; font-size: 30px; font-weight: 700; color: #1a202c;">Riwayat Penyewaan Selesai</h1>
+@endsection
+
 @section('content')
 <div class="container" style="max-width: 1100px; margin: 40px auto; background: white; padding: 0; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #e5e7eb;">
-    
-    <div style="padding: 25px 30px; background: #ffffff; border-bottom: 1px solid #f3f4f6;">
-        <h2 style="color: #1e3a8a; margin: 0; font-weight: 800; font-size: 1.5rem;">Riwayat Penyewaan Selesai</h2>
-        <p style="margin: 5px 0 0; color: #64748b; font-size: 14px;">Daftar penyewaan Anda yang sudah diproses oleh admin.</p>
-    </div>
 
     <div style="overflow-x: auto; padding: 20px 30px 30px;">
         <table style="width: 100%; border-collapse: separate; border-spacing: 0; background: white;">

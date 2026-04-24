@@ -2,11 +2,16 @@
 
 @section('title', 'Fasilitas')
 
+{{-- Bagian ini akan tampil di Topbar sebelah kiri, sejajar dengan profil --}}
+@section('page_title_content')
+    <h1 style="margin: 0; font-size: 30px; font-weight: 700; color: #1a202c;">Daftar Fasilitas</h1>
+@endsection
+
 @section('content')
 
 <div class="container-fluid">
     <div class="header-section">
-        <h2>Daftar Fasilitas</h2>
+        <h2></h2>
     </div>
 
     <style>

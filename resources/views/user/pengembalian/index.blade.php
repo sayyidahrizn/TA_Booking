@@ -1,5 +1,10 @@
 @extends('user.layouts.app')
 
+{{-- Bagian ini akan tampil di Topbar sebelah kiri, sejajar dengan profil --}}
+@section('page_title_content')
+    <h1 style="margin: 0; font-size: 30px; font-weight: 700; color: #1a202c;">Manajemen Pengembalian</h1>
+@endsection
+
 @section('content')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -34,7 +39,6 @@
 </style>
 
 <div class="container py-5">
-    <h1 class="page-title">Manajemen Pengembalian</h1>
 
     {{-- 1. NOTIFIKASI TAGIHAN DENDA --}}
     @if(isset($denda_tunggakan) && $denda_tunggakan->count() > 0)
@@ -77,40 +81,40 @@
     @endif
 
     {{-- 2. FORM PENGEMBALIAN --}}
-    @if($penyewaan->isEmpty() && (!isset($denda_tunggakan) || $denda_tunggakan->isEmpty()))
-        <div class="alert alert-light border-2 text-center rounded-4 shadow-sm">
-            <i class="fas fa-info-circle me-2 text-primary"></i> 
-            <strong>Belum ada fasilitas yang perlu dikembalikan saat ini.</strong>
-        </div>
-    @else
-        @foreach($penyewaan as $tanggal => $items)
-            @php
-                $rowCount = $items->count();
-                $totalSisa = $items->sum('sisa_pembayaran');
-                $isLunas = $totalSisa <= 0;
-            @endphp
-
-            <div class="card-custom">
-                <form action="{{ route('user.pengembalian.store') }}" method="POST" enctype="multipart/form-data" class="form-pengembalian">
-                    @csrf
-                    <div class="table-responsive">
-                        <table class="table-pengembalian">
-                            <thead>
-                                <tr>
-                                    <th width="50">No</th>
-                                    <th width="150">Tanggal Sewa</th>
-                                    <th>Nama Fasilitas</th>
-                                    <th width="80">Pilih</th>
-                                    <th>Sisa Bayar</th>
-                                    <th>Status</th>
-                                    <th>Upload Bukti Foto</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+    <div class="card-custom">
+        <form action="{{ route('user.pengembalian.store') }}" method="POST" enctype="multipart/form-data" class="form-pengembalian">
+            @csrf
+            <div class="table-responsive">
+                <table class="table-pengembalian">
+                    <thead>
+                        <tr>
+                            <th width="50">No</th>
+                            <th width="150">Tanggal Sewa</th>
+                            <th>Nama Fasilitas</th>
+                            <th width="80">Pilih</th>
+                            <th>Sisa Bayar</th>
+                            <th>Status</th>
+                            <th>Upload Bukti Foto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if($penyewaan->isEmpty())
+                            <tr>
+                                <td colspan="7" class="py-5 text-center text-muted">
+                                    <i class="fas fa-info-circle mb-2 d-block" style="font-size: 2rem;"></i>
+                                    <strong>Belum ada fasilitas yang perlu dikembalikan saat ini.</strong>
+                                </td>
+                            </tr>
+                        @else
+                            @php $nomorUrut = 1; @endphp
+                            @foreach($penyewaan as $tanggal => $items)
+                                @php
+                                    $rowCount = $items->count();
+                                @endphp
                                 @foreach($items as $index => $item)
                                 <tr>
                                     @if($index == 0)
-                                        <td rowspan="{{ $rowCount }}">{{ $loop->parent->iteration }}.</td>
+                                        <td rowspan="{{ $rowCount }}">{{ $nomorUrut++ }}.</td>
                                         <td rowspan="{{ $rowCount }}" class="fw-bold">
                                             {{ \Carbon\Carbon::parse($tanggal)->isoFormat('D MMMM YYYY') }}
                                         </td>
@@ -139,18 +143,20 @@
                                     </td>
                                 </tr>
                                 @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <button type="submit" class="btn-submit-group" {{ !$isLunas ? 'disabled' : '' }}>
-                        <i class="fas fa-paper-plane me-2"></i> Ajukan Pengembalian Fasilitas
-                    </button>
-                    <div style="clear: both;"></div>
-                </form>
+                            @endforeach
+                        @endif
+                    </tbody>
+                </table>
             </div>
-        @endforeach
-    @endif
+
+            @if(!$penyewaan->isEmpty())
+                <button type="submit" class="btn-submit-group">
+                    <i class="fas fa-paper-plane me-2"></i> Ajukan Pengembalian Fasilitas
+                </button>
+            @endif
+            <div style="clear: both;"></div>
+        </form>
+    </div>
 </div>
 
 {{-- --- JAVASCRIPT UNTUK NOTIFIKASI --- --}}

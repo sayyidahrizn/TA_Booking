@@ -1,12 +1,17 @@
 @extends('user.layouts.app')
 
+{{-- Bagian ini akan tampil di Topbar sebelah kiri, sejajar dengan profil --}}
+@section('page_title_content')
+    <h1 style="margin: 0; font-size: 30px; font-weight: 700; color: #1a202c;">Daftar Penyewaan Aktif</h1>
+@endsection
+
 @section('content')
 <div class="container" style="max-width: 1100px; margin: 40px auto; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #e5e7eb;">
     
     <div style="padding: 25px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f3f4f6;">
         <div>
-            <h2 style="color: #111827; margin: 0; font-weight: 800; font-size: 1.5rem;">Daftar Penyewaan Aktif</h2>
-            <p style="margin: 5px 0 0; color: #6b7280; font-size: 14px;">Kelola reservasi dan lakukan pembayaran untuk booking yang disetujui.</p>
+            <h2 style="color: #111827; margin: 0; font-weight: 800; font-size: 1.5rem;"></h2>
+            <p style="margin: 5px 0 0; color: #6b7280; font-size: 14px;"></p>
         </div>
         <a href="{{ route('user.penyewaan.create') }}" style="text-decoration: none; background: #4f46e5; color: white; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);">
             + Buat Booking Baru
@@ -23,7 +28,8 @@
         <table style="width: 100%; border-collapse: separate; border-spacing: 0;">
             <thead>
                 <tr style="background: #1e3a8a;">
-                    <th style="padding: 15px 20px; color: white; border-radius: 8px 0 0 8px; text-align: left;">Penyewa</th>
+                    <th style="padding: 15px 20px; color: white; border-radius: 8px 0 0 8px; text-align: center; width: 50px;">No</th>
+                    <th style="padding: 15px 20px; color: white; text-align: left;">Penyewa</th>
                     <th style="padding: 15px 20px; color: white; text-align: left;">Fasilitas</th>
                     <th style="padding: 15px 20px; color: white; text-align: center;">Tanggal</th>
                     <th style="padding: 15px 20px; color: white; text-align: right;">Total Harga</th>
@@ -32,13 +38,16 @@
                 </tr>
             </thead>
             <tbody>
-                @forelse($data as $group)
+                @forelse($data as $index => $group)
                 @php 
                     $p = $group->first(); 
                     $totalHargaGrup = $group->sum('total_harga'); 
                     $status = strtolower($p->status_sewa);
                 @endphp
                 <tr>
+                    <td style="padding: 20px; border-bottom: 1px solid #f3f4f6; text-align: center; font-weight: bold; color: #6b7280;">
+                        {{ $loop->iteration }}
+                    </td>
                     <td style="padding: 20px; border-bottom: 1px solid #f3f4f6;">
                         <strong>{{ $p->nama_penyewa }}</strong><br>
                         <small style="color: #6b7280;">NIK: {{ $p->nik }}</small>
@@ -87,7 +96,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="6" style="padding: 50px; text-align: center; color: #9ca3af;">Belum ada pengajuan aktif.</td>
+                    <td colspan="7" style="padding: 50px; text-align: center; color: #9ca3af;">Belum ada pengajuan aktif.</td>
                 </tr>
                 @endforelse
             </tbody>

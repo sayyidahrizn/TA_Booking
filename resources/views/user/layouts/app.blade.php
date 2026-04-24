@@ -64,26 +64,45 @@
             font-weight: bold;
         }
 
-        /* ===== MAIN ===== */
+        /* ===== MAIN WRAPPER ===== */
         .main-wrapper {
             margin-left: 220px;
             min-height: 100vh;
+            padding-top: 10px; /* Memberikan sedikit ruang di paling atas */
         }
 
-        /* ===== TOPBAR ===== */
+        /* ===== TOPBAR (DIUBAH AGAR SESUAI GAMBAR) ===== */
         .topbar {
             height: 70px;
-            background: white;
+            background: rgb(215, 214, 229);
             display: flex;
-            justify-content: flex-end;
+            justify-content: space-between; 
             align-items: center;
             padding: 0 30px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            
+            /* Penyesuaian Jarak agar Melayang */
+            margin: 20px;            /* Memberikan jarak atas, bawah, kiri, kanan */
+            border-radius: 12px;     /* Membuat sudut melengkung seperti di gambar */
             position: sticky;
-            top: 0;
+            top: 20px;               /* Tetap melayang saat di-scroll */
             z-index: 99;
         }
 
+        /* Container untuk judul di sebelah kiri */
+        .page-title-area {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .page-title-area h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: bold;
+            color: #111827;
+        }
+
+        /* Navigasi Profil di Kanan */
         .user-nav {
             display: flex;
             align-items: center;
@@ -95,7 +114,7 @@
         }
 
         .user-nav:hover {
-            background: #f3f4f6;
+            background: #74d0ec;
         }
 
         .user-details {
@@ -123,19 +142,18 @@
 
         /* ===== CONTENT ===== */
         .content {
-            padding: 25px;
+            padding: 0 25px 25px 25px; /* Padding samping dan bawah */
         }
 
-        /* ===== CARD ===== */
+        /* ===== TABLE & CARD (FITUR TETAP) ===== */
         .card {
-            background: white;
+            background: rgb(165, 193, 238);
             padding: 20px;
-            border-radius: 5px;
+            border-radius: 8px; /* Disamakan sedikit lebih bulat */
             box-shadow: 0 2px 6px rgba(0,0,0,0.1);
             margin-bottom: 20px;
         }
 
-        /* ===== TABLE ===== */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -145,7 +163,7 @@
         table th,
         table td {
             border: 1px solid #ddd;
-            padding: 10px;
+            padding: 12px;
             text-align: center;
         }
 
@@ -154,9 +172,8 @@
             color: white;
         }
 
-        /* ===== BADGE ===== */
         .badge {
-            padding: 4px 8px;
+            padding: 4px 10px;
             border-radius: 4px;
             font-size: 12px;
             font-weight: bold;
@@ -170,13 +187,18 @@
 </head>
 <body>
 
-    {{-- Sidebar --}}
     @include('user.layouts.sidebar')
 
     <div class="main-wrapper">
 
-        {{-- TOPBAR PROFIL --}}
+        {{-- TOPBAR DENGAN TAMPILAN MELAYANG --}}
         <div class="topbar">
+            {{-- Bagian Judul Halaman (Kiri) --}}
+            <div class="page-title-area">
+                <h3>@yield('page_title_content')</h3>
+            </div>
+
+            {{-- Bagian Profil (Kanan) --}}
             <a href="{{ route('user.profile') }}" class="user-nav">
                 <div class="user-details">
                     <div class="user-name">{{ auth()->user()->name }}</div>
@@ -191,7 +213,7 @@
             </a>
         </div>
 
-        {{-- Content --}}
+        {{-- Content Area --}}
         <div class="content">
             @yield('content')
         </div>

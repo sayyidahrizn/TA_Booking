@@ -67,7 +67,7 @@
         /* ================= HEADER ================= */
         .header {
             min-height: 60px;
-            background-color: #ffffff;
+            background-color: #404058;
             padding: 10px 20px;
             border-radius: 8px;
             margin-bottom: 20px;
@@ -82,7 +82,7 @@
             margin: 0;
             font-size: 18px;
             font-weight: bold;
-            color: #111827;
+            color: #ffffff;
         }
 
         /* ================= PROFILE TOP ================= */
@@ -97,7 +97,7 @@
         }
 
         .profile-top:hover {
-            background: #f1f5f9;
+            background: #495969;
         }
 
         .profile-info {
@@ -108,7 +108,7 @@
             display: block;
             font-size: 14px;
             font-weight: bold;
-            color: #111827;
+            color: #ffffff;
         }
 
         .profile-role {
