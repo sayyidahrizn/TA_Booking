@@ -12,7 +12,7 @@
 
     <div style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); padding: 25px 30px; border-radius: 15px; color: white; margin-bottom: 25px; box-shadow: 0 10px 20px rgba(59, 130, 246, 0.15);">
         <h3 style="margin: 0; font-size: 14px; font-weight: 400; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px;">Informasi Akun</h3>
-        <p style="margin: 8px 0 0; font-size: 22px; font-weight: 500;">Selamat datang kembali, <strong style="font-weight: 800;">{{ Auth::user()->name }}</strong>! 👋</p>
+        <p style="margin: 8px 0 0; font-size: 22px; font-weight: 500;">Selamat datang kembali, <strong style="font-weight: 800;">{{ Auth::user()->name }}</strong>! </p>
     </div>
 
     <div style="display: flex; gap: 20px; margin-bottom: 30px;">

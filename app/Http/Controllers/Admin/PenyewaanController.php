@@ -6,10 +6,25 @@ use App\Http\Controllers\Controller;
 use App\Models\Penyewaan;
 use App\Models\Fasilitas;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class PenyewaanController extends Controller
 {
+    /**
+     * FITUR BARU: Kelola Pembayaran untuk Admin
+     */
+    public function pembayaran()
+    {
+        // Grup berdasarkan kode_booking agar fasilitas yang sama jadi satu baris
+        $pembayarans = Penyewaan::with(['user', 'fasilitas'])
+            ->orderBy('tgl_mulai', 'desc')
+            ->get()
+            ->groupBy('kode_booking');
+
+        return view('admin.pembayaran.index', compact('pembayarans'));
+    }
+
     /**
      * DASHBOARD ADMIN - Fitur Statistik, Grafik & Data Otomatis
      */
@@ -20,12 +35,10 @@ class PenyewaanController extends Controller
             ->orWhere('status_sewa', 'disetujui')
             ->sum('total_harga');
 
-        // 2. Statistik Tambahan (Otomatis)
+        // 2. Statistik Tambahan
         $totalFasilitas = Fasilitas::count();
         $totalPenyewaan = Penyewaan::count();
         
-        // Logika Fasilitas Kembali: Hitung yang sudah mengisi form pengembalian (has pengembalian) 
-        // atau status_sewa sudah selesai
         $totalKembali = Penyewaan::where('status_sewa', 'selesai')
             ->orWhereHas('pengembalian')
             ->count();
@@ -56,7 +69,7 @@ class PenyewaanController extends Controller
             $dataGrafik[] = $pendapatanBulanan[$i] ?? 0;
         }
 
-        // 4. Data Tabel Penyewaan Terbaru - Load relasi 'pengembalian' untuk deteksi di blade
+        // 4. Data Tabel Penyewaan Terbaru
         $penyewaan = Penyewaan::with(['user', 'fasilitas', 'pengembalian'])
             ->latest()
             ->get()

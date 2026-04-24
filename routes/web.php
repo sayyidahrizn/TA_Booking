@@ -1,6 +1,8 @@
 <?php
 
+
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\FasilitasController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\RegisteredUserController;
@@ -31,10 +33,9 @@ Route::resource('fasilitas', FasilitasController::class);
 |--------------------------------------------------------------------------
 */
 Route::get('/dashboard', function () {
-    if (auth()->user()->role === 'kaur') {
+    if (Auth::user()->role === 'kaur') {
         return redirect()->route('admin.dashboard');
     }
-
     return redirect()->route('user.dashboard');
 })->middleware(['auth'])->name('dashboard');
 
@@ -110,6 +111,10 @@ Route::prefix('admin')->middleware(['auth', 'isAdmin'])->group(function () {
     // Dashboard Admin
     Route::get('/dashboard', [AdminPenyewaan::class, 'dashboard'])
         ->name('admin.dashboard');
+
+    // FITUR PEMBAYARAN (BARU)
+    Route::get('/pembayaran', [AdminPenyewaan::class, 'pembayaran'])
+        ->name('admin.pembayaran.index');
 
     // Laporan user
     Route::get('/users/laporan', [UserController::class, 'laporan'])
