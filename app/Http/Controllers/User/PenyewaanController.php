@@ -47,10 +47,20 @@ class PenyewaanController extends Controller
 
     public function index()
     {
-        // Perbaikan: Menampilkan semua penyewaan (proses, disetujui, dan selesai) agar tidak hilang dari daftar
+        // Data akan tampil di sini JIKA:
+        // 1. Belum dibayar (status_pembayaran pending)
+        // 2. ATAU Sudah dibayar tapi barang belum dikembalikan (status_pengembalian != selesai)
         $data = Penyewaan::with(['fasilitas', 'pengembalian'])
             ->where('id_user', Auth::id())
-            ->whereIn('status_sewa', ['proses', 'disetujui', 'selesai'])
+            ->where(function($query) {
+                $query->where('status_pembayaran', '!=', 'lunas')
+                      ->orWhereHas('pengembalian', function($q) {
+                          $q->where('status_pengembalian', '!=', 'selesai');
+                      })
+                      // Jika belum ada record di tabel pengembalian, berarti barang masih di user
+                      ->orDoesntHave('pengembalian'); 
+            })
+            ->whereNotIn('status_sewa', ['batal', 'selesai'])
             ->latest()
             ->get()
             ->groupBy('kode_booking');
