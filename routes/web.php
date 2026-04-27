@@ -1,6 +1,6 @@
 <?php
 
-
+use App\Http\Controllers\Admin\LaporanController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\FasilitasController;
@@ -154,7 +154,10 @@ Route::prefix('admin')->middleware(['auth', 'isAdmin'])->group(function () {
     Route::get('/pengembalian', [AdminPengembalianController::class, 'index'])
         ->name('admin.pengembalian');
 
-
+    // 🔥 LAPORAN SISTEM
+    Route::get('/laporan', [LaporanController::class, 'index'])->name('admin.laporan');
+    Route::get('/laporan/pdf', [LaporanController::class, 'downloadPDF'])->name('admin.laporan.pdf');
+    Route::get('/laporan/excel', [LaporanController::class, 'downloadExcel'])->name('admin.laporan.excel');
 });
 
 /*

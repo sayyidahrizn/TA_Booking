@@ -34,6 +34,14 @@
     background:#2563eb;
     color:white;
 }
+.btn-report {
+    background: #059669;
+    color: white;
+}
+.btn-search {
+    background: #4b5563;
+    color: white;
+}
 
 /* ================= ICON BUTTON ================= */
 .icon-btn{
@@ -76,7 +84,7 @@
 .table th{ background:#e5e7eb; }
 .text-left{ text-align:left; }
 .text-center{ text-align:center; }
-.text-muted{ color: #6b7280; font-family: monospace; } /* Styling tambahan untuk NIK */
+.text-muted{ color: #6b7280; font-family: monospace; }
 .aksi{ display:flex; justify-content:center; gap:10px; }
 
 /* ================= PAGINATION ================= */
@@ -118,7 +126,7 @@
     display: none !important;
 }
 
-/* ================= FITUR TAMBAHAN (SEARCH & FILTER) ================= */
+/* ================= FITUR TAMBAHAN ================= */
 .header-actions {
     display: flex;
     justify-content: space-between;
@@ -138,14 +146,6 @@
     border-radius: 4px;
     font-size: 14px;
     outline: none;
-}
-.btn-report {
-    background: #059669;
-    color: white;
-}
-.btn-search {
-    background: #4b5563;
-    color: white;
 }
 </style>
 
@@ -167,8 +167,10 @@
         <a href="{{ route('users.create') }}" class="btn btn-add">
             + Tambah User
         </a>
-        <a href="{{ route('users.laporan') }}" class="btn btn-report">
-            <i class="fa-solid fa-file-pdf"></i> Laporan
+
+        {{-- ✅ TOMBOL LAPORAN SUDAH DIPERBAIKI --}}
+        <a href="{{ route('admin.laporan') }}" class="btn btn-report">
+            <i class="fa-solid fa-chart-line"></i> Laporan
         </a>
     </div>
 
@@ -197,7 +199,7 @@
             <tr>
                 <th class="text-center" style="width: 50px;">No</th>
                 <th class="text-left">Nama</th>
-                <th class="text-left">NIK</th> {{-- Kolom NIK ditambahkan --}}
+                <th class="text-left">NIK</th>
                 <th class="text-left">Email</th>
                 <th class="text-center">Role</th>
                 <th class="text-center">Dibuat</th>
@@ -212,7 +214,7 @@
                 </td>
                 <td class="text-left"><strong>{{ $u->name }}</strong></td>
                 <td class="text-left text-muted">
-                    {{ $u->nik ?? '-' }} {{-- Menampilkan NIK, atau strip jika kosong --}}
+                    {{ $u->nik ?? '-' }}
                 </td>
                 <td class="text-left">{{ $u->email }}</td>
                 <td class="text-center">
@@ -248,20 +250,17 @@
     </table>
 </div>
 
-{{-- Tombol Navigasi Halaman --}}
+{{-- PAGINATION --}}
 <div class="pagination-container">
     {{ $users->appends(request()->query())->links('pagination::bootstrap-4') }}
 </div>
 
 <script>
-// Notifikasi hilang otomatis
 setTimeout(function(){
     const notif = document.getElementById('notif-user');
     if(notif){
         notif.style.opacity='0';
-        setTimeout(()=>{
-            notif.remove();
-        },500);
+        setTimeout(()=> notif.remove(), 500);
     }
 },3000);
 </script>
