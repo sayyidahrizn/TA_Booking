@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Laporan Resmi Sistem Admin Desa</title>
+    <title>Laporan Sistem Desa</title>
     <style>
         body { font-family: 'Times New Roman', Times, serif; color: #333; line-height: 1.2; margin: 20px; }
         .kop-surat { border-bottom: 3px double #000; padding-bottom: 5px; margin-bottom: 20px; text-align: center; position: relative; }
@@ -26,15 +26,15 @@
 </head>
 <body>
     <div class="kop-surat">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/b/b1/Lencana_Garuda.png" class="logo">
-        <h1>PEMERINTAH KABUPATEN JOMBANG</h1>
+        <img src="{{ asset('images/LOGODESA.png') }}" class="logo">
+        <h1>PEMERINTAH KABUPATEN BLITAR</h1>
         <h2>KANTOR KEPALA DESA KESAMBEN</h2>
-        <p>Jl. Raya Kesamben No. 123, Kec. Kesamben, Kabupaten Jombang, Jawa Timur</p>
-        <p>Email: desakesamben@gmail.com | Kode Pos: 61484</p>
+        <p>Jl. Jaksa Agung Suprapto No.01, Kesamben, Kec. Kesamben, Kabupaten Blitar, Jawa Timur</p>
+        <p>No Telf:0342 331128 | Instagram: @pemerintahdesakesamben | Kode Pos: 61419</p>
     </div>
 
     <div class="judul-laporan">
-        <h3>LAPORAN PENYEWAAN FASILITAS DESA</h3>
+        <h3>LAPORAN PENYEWAAN FASILITAS DESA KESAMBEN</h3>
         <p>Periode: <strong>{{ $periodeTeks }}</strong></p>
     </div>
 
@@ -89,7 +89,7 @@
     </div>
 
     <div class="ttd-box">
-        <p>Jombang, {{ $tglCetak }}</p>
+        <p>Blitar, {{ $tglCetak }}</p>
         <p>Admin Desa Kesamben,</p>
         <div style="margin-top: 60px;"></div>
         <p><strong>( ____________________ )</strong></p>
