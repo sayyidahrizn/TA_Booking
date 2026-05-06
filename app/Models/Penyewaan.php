@@ -22,35 +22,35 @@ class Penyewaan extends Model
         'tgl_mulai', 
         'tgl_selesai', 
         'keterangan', 
-        'total_harga', 
-        'status_pembayaran', 
+        'total_harga',  
         'status_sewa', 
-        'sisa_pembayaran', 
         'status_pengembalian', 
         'tanggal_harus_kembali',
-
-        // 🔥 TAMBAHAN MIDTRANS
-        'snap_token',
-        'order_id'
     ];
 
     /**
-     * Relasi ke model User
+     * Relasi ke model Pembayaran (PENTING: Agar error hilang)
      */
+    public function pembayaran() {
+        // Satu penyewaan bisa memiliki banyak transaksi pembayaran (DP, Pelunasan, Denda)
+        return $this->hasMany(Pembayaran::class, 'id_penyewaan', 'id_penyewaan');
+    }
+
+    /**
+     * Relasi ke model Denda
+     */
+    public function denda() {
+        return $this->hasOne(Denda::class, 'id_penyewaan', 'id_penyewaan');
+    }
+
     public function user() {
         return $this->belongsTo(User::class, 'id_user');
     }
 
-    /**
-     * Relasi ke model Fasilitas
-     */
     public function fasilitas() {
         return $this->belongsTo(Fasilitas::class, 'id_fasilitas', 'id_fasilitas');
     }
 
-    /**
-     * Relasi ke model Pengembalian
-     */
     public function pengembalian() {
         return $this->hasOne(Pengembalian::class, 'id_penyewaan', 'id_penyewaan');
     }

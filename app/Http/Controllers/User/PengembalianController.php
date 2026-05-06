@@ -5,6 +5,8 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\Pengembalian;
 use App\Models\Penyewaan;
+use App\Models\Denda;
+use App\Models\Pembayaran;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -15,22 +17,39 @@ class PengembalianController extends Controller
 {
     public function index()
     {
-        // Data untuk form pengembalian (yang belum kembali)
-        $penyewaan = Penyewaan::with('fasilitas')
-            ->where('id_user', Auth::id())
+        $userId = Auth::id();
+
+        // 1. Ambil data penyewaan yang sudah disetujui tapi BELUM ada di tabel pengembalian
+        $penyewaan = Penyewaan::with(['fasilitas', 'pembayaran'])
+            ->where('id_user', $userId)
             ->where('status_sewa', 'disetujui')
-            ->where('status_pengembalian', 'belum')
+            ->whereDoesntHave('pengembalian')
             ->get()
+            ->map(function($item) {
+                // Hitung total pembayaran yang sukses
+                $totalBayar = $item->pembayaran->whereIn('status_pembayaran', ['pending', 'berhasil'])->sum('jumlah_bayar');
+                
+                // Logika Sisa Bayar: Total Harga - Total Bayar
+                $sisaRaw = $item->total_harga - $totalBayar;
+
+                // FIX: Jika sisa kurang dari 1 rupiah (karena selisih desimal/admin), anggap 0 (Lunas)
+                $item->sisa_pembayaran = ($sisaRaw < 1) ? 0 : $sisaRaw;
+
+                // Cek apakah sudah melewati tanggal selesai
+                $item->sudah_waktunya_kembali = Carbon::now()->greaterThanOrEqualTo(Carbon::parse($item->tgl_selesai));
+                
+                return $item;
+            })
             ->groupBy(function($item) {
                 return Carbon::parse($item->tgl_mulai)->format('Y-m-d');
             });
 
-        // Data denda yang harus dibayar (fitur baru hasil validasi admin)
-        $denda_tunggakan = Pengembalian::with('penyewaan.fasilitas')
-            ->whereHas('penyewaan', function($q) {
-                $q->where('id_user', Auth::id());
+        // 2. Ambil data denda yang belum dibayar
+        $denda_tunggakan = Denda::with('penyewaan.fasilitas')
+            ->whereHas('penyewaan', function($q) use ($userId) {
+                $q->where('id_user', $userId);
             })
-            ->where('status_pembayaran_denda', 'pending')
+            ->where('status_denda', 'belum_bayar')
             ->get();
 
         return view('user.pengembalian.index', compact('penyewaan', 'denda_tunggakan'));
@@ -48,16 +67,16 @@ class PengembalianController extends Controller
             'bukti_pengembalian.*.max' => 'Ukuran gambar maksimal adalah 5MB.',
         ]);
 
-        $count = 0;
         DB::beginTransaction();
-
         try {
+            $count = 0;
             foreach ($request->id_penyewaan as $id) {
                 if (!$request->hasFile("bukti_pengembalian.$id")) {
                     throw new Exception("Bukti foto untuk salah satu fasilitas belum diunggah.");
                 }
 
-                $penyewaan = Penyewaan::where('id_penyewaan', $id)
+                $penyewaan = Penyewaan::with('pembayaran')
+                    ->where('id_penyewaan', $id)
                     ->where('id_user', Auth::id())
                     ->lockForUpdate()
                     ->first();
@@ -66,7 +85,11 @@ class PengembalianController extends Controller
                     throw new Exception("Data penyewaan tidak ditemukan.");
                 }
 
-                if ($penyewaan->sisa_pembayaran <= 0 && $penyewaan->status_pengembalian == 'belum') {
+                // Hitung ulang sisa pembayaran secara dinamis
+                $totalBayar = $penyewaan->pembayaran->whereIn('status_pembayaran', ['pending', 'berhasil'])->sum('jumlah_bayar');
+                $sisa = $penyewaan->total_harga - $totalBayar;
+
+                if ($sisa <= 0) {
                     $file = $request->file("bukti_pengembalian.$id")->store('pengembalian', 'public');
 
                     Pengembalian::create([
@@ -74,22 +97,16 @@ class PengembalianController extends Controller
                         'tanggal_pengembalian' => now(),
                         'bukti_pengembalian' => $file,
                         'status_validasi' => 'pending',
-                        'status_pembayaran_denda' => null 
                     ]);
 
-                    $penyewaan->update(['status_pengembalian' => 'proses']);
                     $count++;
                 } else {
-                    throw new Exception("Fasilitas {$penyewaan->fasilitas->nama_fasilitas} belum lunas.");
+                    throw new Exception("Fasilitas {$penyewaan->fasilitas->nama_fasilitas} belum lunas (Sisa: Rp ".number_format($sisa,0,',','.').").");
                 }
             }
 
-            if ($count > 0) {
-                DB::commit();
-                return redirect()->route('user.pengembalian')
-                                 ->with('success', "$count Fasilitas berhasil diajukan.");
-            }
-            throw new Exception("Tidak ada data yang diproses.");
+            DB::commit();
+            return redirect()->route('user.pengembalian')->with('success', "$count Fasilitas berhasil diajukan.");
 
         } catch (Exception $e) {
             DB::rollBack();
@@ -99,22 +116,23 @@ class PengembalianController extends Controller
 
     public function bayarDenda($id)
     {
-        $pengembalian = Pengembalian::with(['penyewaan.fasilitas', 'penyewaan.user'])->findOrFail($id);
+        // Mencari data di tabel Denda
+        $denda = Denda::with(['penyewaan.fasilitas', 'penyewaan.user'])->findOrFail($id);
         
-        // Konfigurasi Midtrans
-        \Midtrans\Config::$serverKey = config('midtrans.server_key');
-        \Midtrans\Config::$isProduction = config('midtrans.is_production', false);
+        \Midtrans\Config::$serverKey = config('services.midtrans.server_key');
+        \Midtrans\Config::$isProduction = config('services.midtrans.is_production', false);
         \Midtrans\Config::$isSanitized = true;
         \Midtrans\Config::$is3ds = true;
 
-        // Cek jika snap token sudah ada agar tidak generate ulang (mencegah Duplicate Order ID)
-        if ($pengembalian->snap_token_denda) {
-            $snapToken = $pengembalian->snap_token_denda;
+        // Gunakan snap_token yang sudah ada di tabel denda jika tersedia
+        if ($denda->snap_token) {
+            $snapToken = $denda->snap_token;
         } else {
+            $orderId = 'DENDA-' . $denda->id_denda . '-' . time();
             $params = [
                 'transaction_details' => [
-                    'order_id' => 'DENDA-' . $pengembalian->id . '-' . time(),
-                    'gross_amount' => (int) $pengembalian->total_denda,
+                    'order_id' => $orderId,
+                    'gross_amount' => (int) $denda->total_denda,
                 ],
                 'customer_details' => [
                     'first_name' => Auth::user()->name,
@@ -122,22 +140,22 @@ class PengembalianController extends Controller
                 ],
                 'item_details' => [
                     [
-                        'id' => 'DND-' . $pengembalian->id,
-                        'price' => (int) $pengembalian->total_denda,
+                        'id' => 'DND-' . $denda->id_denda,
+                        'price' => (int) $denda->total_denda,
                         'quantity' => 1,
-                        'name' => 'Denda Fasilitas: ' . $pengembalian->penyewaan->fasilitas->nama_fasilitas,
+                        'name' => 'Denda: ' . $denda->penyewaan->fasilitas->nama_fasilitas,
                     ]
                 ]
             ];
 
             try {
                 $snapToken = \Midtrans\Snap::getSnapToken($params);
-                $pengembalian->update(['snap_token_denda' => $snapToken]);
+                $denda->update(['snap_token' => $snapToken]);
             } catch (Exception $e) {
                 return back()->with('error', 'Gagal memproses pembayaran: ' . $e->getMessage());
             }
         }
 
-        return view('user.pengembalian.bayar', compact('pengembalian', 'snapToken'));
+        return view('user.pengembalian.bayar', compact('denda', 'snapToken'));
     }
 }

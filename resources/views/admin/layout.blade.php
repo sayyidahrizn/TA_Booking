@@ -153,6 +153,7 @@
         <a href="{{ route('admin.penyewaan.index') }}">Kelola Booking</a>
         <a href="{{ route('admin.pembayaran.index') }}">Kelola Pembayaran</a>
         <a href="{{ route('admin.pengembalian') }}">Kelola Pengembalian</a>
+        <a href="#">Laporan</a>
         <a href="/">Logout</a>
     </div>
 

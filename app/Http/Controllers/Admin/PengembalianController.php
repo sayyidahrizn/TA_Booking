@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Pengembalian;
 use App\Models\Penyewaan;
+use App\Models\Denda;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -17,15 +18,12 @@ class PengembalianController extends Controller
             ->where('status_validasi', 'pending')
             ->get()
             ->map(function($item) {
-                // Deadline (Tgl Selesai Sewa)
                 $deadline = Carbon::parse($item->penyewaan->tgl_selesai)->startOfDay();
-                // Realisasi (Tgl User Kembalikan)
                 $tgl_kembali_user = Carbon::parse($item->tanggal_pengembalian)->startOfDay();
                 
                 $item->hari_telat = 0;
                 $item->denda_telat_otomatis = 0;
                 
-                // Jika tanggal kembali lebih besar dari deadline, berarti TELAT
                 if ($tgl_kembali_user->gt($deadline)) {
                     $item->hari_telat = $deadline->diffInDays($tgl_kembali_user);
                     $item->denda_telat_otomatis = $item->hari_telat * 10000; 
@@ -53,48 +51,33 @@ class PengembalianController extends Controller
                 $deadline = Carbon::parse($item->penyewaan->tgl_selesai)->startOfDay();
                 $tgl_kembali_user = Carbon::parse($item->tanggal_pengembalian)->startOfDay();
                 
-                $denda_telat = 0;
-                if ($tgl_kembali_user->gt($deadline)) {
-                    $hari = $deadline->diffInDays($tgl_kembali_user);
-                    $denda_telat = $hari * 10000;
-                }
+                $denda_telat = $tgl_kembali_user->gt($deadline) ? $deadline->diffInDays($tgl_kembali_user) * 10000 : 0;
+                $total_denda = $denda_telat + (float)($denda_rusak ?? 0);
 
-                $denda_rusak_val = (float)($denda_rusak ?? 0);
-                $total_denda = $denda_telat + $denda_rusak_val;
-                $catatan = $request->catatan_admin[$id] ?? null;
-
-                // Update Tabel Pengembalian
+                // Update Pengembalian
                 $item->update([
                     'status_validasi' => 'disetujui',
-                    'denda_telat' => $denda_telat,
-                    'denda_rusak' => $denda_rusak_val,
-                    'total_denda' => $total_denda,
-                    'catatan_admin' => $catatan,
-                    'status_pembayaran_denda' => $total_denda > 0 ? 'pending' : 'lunas',
+                    'catatan_admin' => $request->catatan_admin[$id] ?? null,
                 ]);
 
-                /**
-                 * PERBAIKAN LOGIKA:
-                 * Selain update status_pengembalian, kita juga update status_sewa menjadi 'selesai'.
-                 * Ini agar Dashboard Admin mendeteksi bahwa transaksi ini sudah ditutup (Biru).
-                 */
+                // Simpan ke tabel Denda
                 if ($total_denda > 0) {
-                    // Jika ada denda, status pengembalian denda_pending, namun transaksi sewa tetap selesai
-                    $item->penyewaan->update([
-                        'status_pengembalian' => 'denda_pending',
-                        'status_sewa' => 'selesai' 
-                    ]);
-                } else {
-                    // Jika denda 0, langsung lunas/selesai secara total
-                    $item->penyewaan->update([
-                        'status_pengembalian' => 'selesai',
-                        'status_sewa' => 'selesai'
+                    Denda::create([
+                        'id_penyewaan' => $item->id_penyewaan,
+                        'biaya_keterlambatan' => $denda_telat,
+                        'biaya_kerusakan' => (float)($denda_rusak ?? 0),
+                        'total_denda' => $total_denda,
+                        'keterangan_kerusakan' => $request->catatan_admin[$id] ?? null,
+                        'status_denda' => 'belum_bayar',
                     ]);
                 }
+
+                // Update status penyewaan utama
+                $item->penyewaan->update(['status_sewa' => 'selesai']);
             }
 
             DB::commit();
-            return back()->with('success', 'Validasi Berhasil Disimpan!');
+            return back()->with('success', 'Validasi Berhasil!');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Kesalahan: ' . $e->getMessage());

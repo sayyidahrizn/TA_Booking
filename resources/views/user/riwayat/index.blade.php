@@ -25,15 +25,22 @@
                     $first = $group->first(); 
                     $totalHargaGrup = $group->sum('total_harga');
                     
-                    // Logika Status: Sukses jika disetujui/selesai, selain itu merah
-                    $isSuccess = in_array($first->status_sewa, ['disetujui', 'selesai']);
+                    // Ambil status validasi dari relasi pengembalian
+                    $statusKembali = $first->pengembalian ? $first->pengembalian->status_validasi : null;
+
+                    // Logika Status: Sukses jika sewa selesai/disetujui ATAU pengembalian sudah disetujui
+                    $isSuccess = in_array($first->status_sewa, ['disetujui', 'selesai']) || $statusKembali == 'disetujui';
                     
                     $bgColor = $isSuccess ? '#dcfce7' : '#fee2e2';
                     $textColor = $isSuccess ? '#166534' : '#991b1b';
                     $dotColor = $isSuccess ? '#22c55e' : '#ef4444';
 
-                    // Label teks: Jika status pengembalian sudah selesai, tampilkan "SELESAI"
-                    $labelStatus = ($first->status_pengembalian == 'selesai') ? 'SELESAI' : strtoupper($first->status_sewa);
+                    // Label teks: Jika di tabel pengembalian sudah disetujui, tampilkan "SELESAI"
+                    if ($statusKembali == 'disetujui') {
+                        $labelStatus = 'SELESAI';
+                    } else {
+                        $labelStatus = strtoupper($first->status_sewa);
+                    }
                 @endphp
                 <tr style="transition: background 0.2s;" onmouseover="this.style.backgroundColor='#f9fafb'" onmouseout="this.style.backgroundColor='transparent'">
                     <td style="padding: 20px; border-bottom: 1px solid #f3f4f6; text-align: center; font-weight: 600; color: #64748b;">
