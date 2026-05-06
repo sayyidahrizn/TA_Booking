@@ -26,28 +26,31 @@ class PembayaranController extends Controller
      */
     public function index($id)
     {
-        // 1. Ambil data penyewaan dan hanya pembayaran yang sudah SUKSES
-        $penyewaan = Penyewaan::with(['fasilitas', 'pembayaran' => function($query) {
-            $query->where('status_pembayaran', 'berhasil'); // Kunci utama ada di sini
+        $penyewaan = Penyewaan::with(['fasilitas', 'pembayaran' => function($q){
+            $q->where('status_pembayaran', 'berhasil');
         }])->where('id_user', Auth::id())->findOrFail($id);
 
-        // 2. Ambil total_harga dari tabel PENYEWAAN
         $totalTagihan = $penyewaan->total_harga;
+        $totalBayar = $penyewaan->pembayaran->sum('jumlah_bayar');
+        $sisaTagihan = $totalTagihan - $totalBayar;
 
-        // 3. Ambil jumlah_bayar dari tabel PEMBAYARAN (semua yang statusnya berhasil)
-        $totalYangSudahDibayar = $penyewaan->pembayaran->sum('jumlah_bayar');
+        if ($sisaTagihan <= 0) {
+            return redirect()->route('user.pengembalian')
+                ->with('success', 'Sudah lunas.');
+        }
 
-        // 4. Hitung Sisa Bayar
-        $sisaTagihan = $totalTagihan - $totalYangSudahDibayar;
-
-        // 5. Cari record pembayaran yang statusnya 'pending' untuk diproses transaksinya
         $pembayaran = Pembayaran::where('id_penyewaan', $id)
             ->where('status_pembayaran', 'pending')
             ->first();
 
         if (!$pembayaran) {
-            return redirect()->route('user.penyewaan.index')
-                ->with('error', 'Tagihan tidak ditemukan atau sudah lunas.');
+            $pembayaran = Pembayaran::create([
+                'id_penyewaan' => $id,
+                'kode_pembayaran' => 'TEMP-' . time(), // 🔥 TAMBAHKAN INI
+                'jumlah_bayar' => 0,
+                'status_pembayaran' => 'pending',
+                'jenis_pembayaran' => 'pelunasan',
+            ]);
         }
 
         return view('user.pembayaran.index', compact('penyewaan', 'pembayaran', 'sisaTagihan'));

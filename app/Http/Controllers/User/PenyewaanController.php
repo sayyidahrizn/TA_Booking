@@ -92,7 +92,21 @@ class PenyewaanController extends Controller
     public function create()
     {
         $fasilitas = Fasilitas::where('status_fasilitas', 'tersedia')->get();
-        return view('user.penyewaan.create', compact('fasilitas'));
+
+        // MENGAMBIL DATA TANGGAL YANG SUDAH DI-BOOKING
+        $existingBookings = Penyewaan::whereNotIn('status_sewa', ['batal'])
+            ->select('id_fasilitas', 'tgl_mulai', 'tgl_selesai')
+            ->get()
+            ->map(function($item) {
+                return [
+                    'id_fasilitas' => $item->id_fasilitas,
+                    // Format Y-m-d untuk Flatpickr JS
+                    'from' => Carbon::parse($item->tgl_mulai)->format('Y-m-d'),
+                    'to'   => Carbon::parse($item->tgl_selesai)->format('Y-m-d'),
+                ];
+            });
+
+        return view('user.penyewaan.create', compact('fasilitas', 'existingBookings'));
     }
 
     /**

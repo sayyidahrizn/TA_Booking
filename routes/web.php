@@ -11,6 +11,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\PengembalianController as AdminPengembalianController;
 use App\Http\Controllers\User\PenyewaanController as UserPenyewaan;
 use App\Http\Controllers\Admin\PenyewaanController as AdminPenyewaan;
+use App\Http\Controllers\User\PembayaranController;
 
 /*
 |--------------------------------------------------------------------------
@@ -19,6 +20,7 @@ use App\Http\Controllers\Admin\PenyewaanController as AdminPenyewaan;
 */
 Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
 Route::post('/register', [RegisteredUserController::class, 'store']);
+
 Route::get('/', [FasilitasController::class, 'landingPage'])->name('landing');
 Route::resource('fasilitas', FasilitasController::class);
 
@@ -54,14 +56,19 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/user/penyewaan/detail/{id}', [UserPenyewaan::class, 'show'])->name('user.penyewaan.show');
 
     // ========================================================
-    // 🔥 FITUR PEMBAYARAN DP/LUNAS (HANYA GUNAKAN SATU INI)
+    // ✅ PEMBAYARAN (FIX DI SINI)
     // ========================================================
-    Route::get('/penyewaan/pembayaran/{id}', [App\Http\Controllers\User\PembayaranController::class, 'index'])
+    Route::get('/user/pembayaran/{id}', [PembayaranController::class, 'index'])
         ->name('user.pembayaran.index');
 
-    // 2. Arahkan ke PembayaranController method proses
-    Route::post('/penyewaan/pembayaran/{id}/proses', [App\Http\Controllers\User\PembayaranController::class, 'proses'])
+    Route::post('/user/pembayaran/{id}/proses', [PembayaranController::class, 'proses'])
         ->name('user.pembayaran.proses');
+
+    Route::get('/user/pelunasan/{id}', [App\Http\Controllers\User\PembayaranController::class, 'pelunasan'])
+    ->name('user.pelunasan.index');
+
+    Route::post('/user/pelunasan/{id}/proses', [App\Http\Controllers\User\PembayaranController::class, 'prosesPelunasan'])
+    ->name('user.pelunasan.proses');
 
     // Profile
     Route::get('/user/profile', [ProfileController::class, 'edit'])->name('user.profile');
@@ -82,20 +89,28 @@ Route::middleware(['auth'])->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::prefix('admin')->middleware(['auth', 'isAdmin'])->group(function () {
+
     Route::get('/dashboard', [AdminPenyewaan::class, 'dashboard'])->name('admin.dashboard');
+
     Route::get('/pembayaran', [AdminPenyewaan::class, 'pembayaran'])->name('admin.pembayaran.index');
+
     Route::get('/users/laporan', [UserController::class, 'laporan'])->name('users.laporan');
     Route::resource('users', UserController::class);
+
     Route::resource('fasilitas', FasilitasController::class);
     Route::delete('/fasilitas/gambar/{id}', [FasilitasController::class, 'hapusGambar'])->name('fasilitas.gambar.hapus');
+
     Route::get('/penyewaan', [AdminPenyewaan::class, 'index'])->name('admin.penyewaan.index');
     Route::post('/penyewaan/konfirmasi-group/{kode}', [AdminPenyewaan::class, 'konfirmasiGroup'])->name('admin.penyewaan.konfirmasi.group');
     Route::post('/penyewaan/tolak-group/{kode}', [AdminPenyewaan::class, 'tolakGroup'])->name('admin.penyewaan.tolak.group');
     Route::delete('/penyewaan/{id}', [AdminPenyewaan::class, 'destroy'])->name('admin.penyewaan.destroy');
+
     Route::post('/pengembalian/validasi', [AdminPengembalianController::class, 'validasi'])->name('admin.pengembalian.validasi');
+    Route::get('/pengembalian', [AdminPengembalianController::class, 'index'])->name('admin.pengembalian');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('admin.profile');
     Route::post('/profile/update', [ProfileController::class, 'update'])->name('admin.profile.update');
-    Route::get('/pengembalian', [AdminPengembalianController::class, 'index'])->name('admin.pengembalian');
+
     Route::get('/laporan', [LaporanController::class, 'index'])->name('admin.laporan');
     Route::get('/laporan/pdf', [LaporanController::class, 'downloadPDF'])->name('admin.laporan.pdf');
     Route::get('/laporan/excel', [LaporanController::class, 'downloadExcel'])->name('admin.laporan.excel');
