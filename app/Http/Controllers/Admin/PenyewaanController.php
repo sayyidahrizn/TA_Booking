@@ -8,6 +8,7 @@ use App\Models\Fasilitas;
 use App\Models\User;
 use App\Models\Pembayaran;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
 class PenyewaanController extends Controller
@@ -41,14 +42,117 @@ class PenyewaanController extends Controller
     /**
      * HALAMAN PEMBAYARAN ADMIN
      */
-    public function pembayaran()
+   public function pembayaran(Request $request)
     {
-        $pembayarans = Penyewaan::with(['user', 'fasilitas', 'pembayaran'])
+        // FILTER STATUS
+        $filter = $request->status;
+
+        $filter = $request->status;
+        $search = $request->search;
+
+        // AMBIL DATA PENYEWAAN
+        $data = Penyewaan::with([
+                'user',
+                'fasilitas',
+                'pembayaran'
+            ])
+
+            ->when($search, function($query) use ($search) {
+            $query->where(function($q) use ($search) {
+            // Cari berdasarkan Nama di tabel User
+                $q->whereHas('user', function($userQuery) use ($search) {
+                    $userQuery->where('name', 'like', "%{$search}%")
+                          ->orWhere('nik', 'like', "%{$search}%");
+            })
+            // Atau cari berdasarkan Kode Booking di tabel Penyewaan itu sendiri
+                ->orWhere('kode_booking', 'like', "%{$search}%");
+            });
+    })
             ->orderBy('tgl_mulai', 'desc')
             ->get()
             ->groupBy('kode_booking');
 
-        return view('admin.pembayaran.index', compact('pembayarans'));
+        // COLLECTION HASIL
+        $hasil = collect();
+
+        // LOOPING DATA
+        foreach ($data as $kode => $items) {
+
+            // TOTAL TAGIHAN
+            $totalTagihan = $items->sum('total_harga');
+
+            // TOTAL PEMBAYARAN
+            $totalBayar = 0;
+
+            foreach ($items as $item) {
+
+                // CEK RELASI PEMBAYARAN
+                if ($item->pembayaran) {
+
+                    // HITUNG PEMBAYARAN BERHASIL
+                    $bayar = $item->pembayaran
+                        ->whereIn('status_pembayaran', [
+                            'berhasil',
+                            'diverifikasi'
+                        ])
+                        ->sum('jumlah_bayar');
+
+                    $totalBayar += $bayar;
+                }
+            }
+
+            // HITUNG SISA TAGIHAN
+            $sisaTagihan = $totalTagihan - $totalBayar;
+
+            // STATUS PEMBAYARAN
+            $statusPembayaran = $sisaTagihan <= 0
+                ? 'lunas'
+                : 'pending';
+
+            // SIMPAN DATA CUSTOM
+            $items->total_tagihan = $totalTagihan;
+            $items->total_bayar = $totalBayar;
+            $items->sisa_tagihan = $sisaTagihan;
+            $items->status_custom = $statusPembayaran;
+
+            // FILTER STATUS
+            if ($filter) {
+
+                if ($statusPembayaran == $filter) {
+                    $hasil->put($kode, $items);
+                }
+
+            } else {
+
+                $hasil->put($kode, $items);
+            }
+        }
+
+        // PAGINATION MANUAL
+        $perPage = 10;
+
+        $currentPage = $request->get('page', 1);
+
+        $currentItems = $hasil
+            ->slice(($currentPage - 1) * $perPage, $perPage)
+            ->all();
+
+        $pembayarans = new \Illuminate\Pagination\LengthAwarePaginator(
+            $currentItems,
+            $hasil->count(),
+            $perPage,
+            $currentPage,
+            [
+                'path' => request()->url(),
+                'query' => request()->query(),
+            ]
+        );
+
+        // KIRIM KE VIEW
+        return view('admin.pembayaran.index', compact(
+            'pembayarans',
+            'filter'
+        ));
     }
 
     /**
@@ -113,13 +217,41 @@ class PenyewaanController extends Controller
     /**
      * LIST PENYEWAAN
      */
-    public function index()
+    public function index(Request $request)
     {
-        $penyewaan = Penyewaan::with(['user', 'fasilitas', 'pembayaran'])
+        $search = $request->search;
+
+        // Ambil data dengan filter search dan relasi
+        $data = Penyewaan::with(['user', 'fasilitas', 'pembayaran'])
             ->whereNotNull('kode_booking')
+            ->when($search, function($query) use ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->whereHas('user', function($userQuery) use ($search) {
+                        $userQuery->where('name', 'like', "%{$search}%")
+                                  ->orWhere('nik', 'like', "%{$search}%");
+                    })
+                    ->orWhere('kode_booking', 'like', "%{$search}%");
+                });
+            })
             ->latest()
             ->get()
             ->groupBy('kode_booking');
+
+        // Pagination Manual untuk Grouped Collection
+        $perPage = 10;
+        $currentPage = $request->get('page', 1);
+        $currentItems = $data->slice(($currentPage - 1) * $perPage, $perPage)->all();
+
+        $penyewaan = new LengthAwarePaginator(
+            $currentItems,
+            $data->count(),
+            $perPage,
+            $currentPage,
+            [
+                'path' => request()->url(),
+                'query' => request()->query(),
+            ]
+        );
 
         return view('admin.penyewaan.index', compact('penyewaan'));
     }

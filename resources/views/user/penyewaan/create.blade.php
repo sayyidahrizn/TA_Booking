@@ -111,140 +111,527 @@
 
 <script>
     let items = [];
+
+    // data booking dari Laravel
     const disabledDatesRaw = @json($existingBookings);
+
     let startPicker, endPicker;
 
-    function initPickers(disabledDates = []) {
-        // Hancurkan instance lama agar filter baru benar-benar diterapkan
-        if(startPicker) startPicker.destroy();
-        if(endPicker) endPicker.destroy();
+    // =========================
+    // FORMAT RUPIAH
+    // =========================
+    function formatRupiah(number) {
+        return "Rp " + new Intl.NumberFormat('id-ID').format(number);
+    }
 
+    // =========================
+    // INIT DATE PICKER
+    // =========================
+    function initPickers(disabledDates = []) {
+
+        // destroy picker lama
+        if (startPicker) startPicker.destroy();
+        if (endPicker) endPicker.destroy();
+
+        // picker mulai
         startPicker = flatpickr("#temp_mulai", {
+
             minDate: "today",
+
             dateFormat: "Y-m-d",
+
             disable: disabledDates,
+
+            disableMobile: true,
+
             onChange: function(selectedDates, dateStr) {
+
+                // tanggal selesai minimal tanggal mulai
                 endPicker.set('minDate', dateStr);
+
+                // apply disabled dates ke picker selesai
+                endPicker.set('disable', disabledDates);
             }
         });
 
+        // picker selesai
         endPicker = flatpickr("#temp_selesai", {
+
             minDate: "today",
+
             dateFormat: "Y-m-d",
-            disable: disabledDates
+
+            disable: disabledDates,
+
+            disableMobile: true
         });
     }
 
-    document.addEventListener("DOMContentLoaded", function() {
-        const timeConfig = { enableTime: true, noCalendar: true, dateFormat: "H:i", time_24hr: true, disableMobile: "true" };
+    // =========================
+    // DOM READY
+    // =========================
+    document.addEventListener("DOMContentLoaded", function () {
+
+        // time picker
+        const timeConfig = {
+            enableTime: true,
+            noCalendar: true,
+            dateFormat: "H:i",
+            time_24hr: true,
+            disableMobile: true
+        };
+
         flatpickr("#temp_jam_mulai", timeConfig);
         flatpickr("#temp_jam_selesai", timeConfig);
-        
-        initPickers(); // Inisialisasi awal (kosong)
+
+        // init kosong
+        initPickers([]);
+
+        console.log(disabledDatesRaw);
 
         @if(session('success'))
-            Swal.fire({ icon: 'success', title: 'Berhasil!', text: "{{ session('success') }}", showConfirmButton: false, timer: 3000, timerProgressBar: true, iconColor: '#4f46e5' });
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil!',
+                text: "{{ session('success') }}",
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+                iconColor: '#4f46e5'
+            });
         @endif
     });
 
+    // =========================
+    // UPDATE STOCK & DISABLED DATE
+    // =========================
     function updateStockLabel() {
-        const select = document.getElementById('temp_id');
-        const selected = select.options[select.selectedIndex];
-        
-        // Bersihkan input tanggal saat ganti fasilitas agar user wajib milih ulang
+
+        const select =
+            document.getElementById('temp_id');
+
+        const selected =
+            select.options[select.selectedIndex];
+
+        // reset tanggal
         document.getElementById('temp_mulai').value = "";
         document.getElementById('temp_selesai').value = "";
 
-        if(!selected.value) {
-            document.getElementById('stok_info').innerText = "";
+        // reset jika belum pilih
+        if (!selected.value) {
+
+            document.getElementById(
+                'stok_info'
+            ).innerText = "";
+
             initPickers([]);
+
             return;
         }
 
         const idFasilitas = selected.value;
-        const stok = selected.getAttribute('data-stok');
-        const harga = selected.getAttribute('data-harga');
 
-        // Filter tanggal khusus untuk fasilitas yang dipilih
-        const specificDisabledDates = disabledDatesRaw
-            .filter(b => b.id_fasilitas == idFasilitas)
-            .map(b => ({ from: b.from, to: b.to }));
+        const stok =
+            selected.getAttribute('data-stok');
 
-        // Re-inisialisasi kalender dengan daftar blokir terbaru
-        initPickers(specificDisabledDates);
+        const harga =
+            selected.getAttribute('data-harga');
 
-        document.getElementById('stok_info').innerText = stok ? `Harga: ${formatRupiah(harga)} / hari | Stok: ${stok} unit` : "";
+        // filter booking sesuai fasilitas
+        const disabledRanges =
+            disabledDatesRaw
+                .filter(item =>
+                    item.id_fasilitas == idFasilitas
+                )
+                .map(item => ({
+                    from: item.from,
+                    to: item.to
+                }));
+
+        console.log(disabledRanges);
+
+        // kirim ke flatpickr
+        initPickers(disabledRanges);
+
+        // info stok
+        document.getElementById(
+            'stok_info'
+        ).innerText =
+            `Harga: ${formatRupiah(harga)} / hari | Stok: ${stok} unit`;
     }
 
-    function formatRupiah(number) { return "Rp " + new Intl.NumberFormat('id-ID').format(number); }
-
+    // =========================
+    // TAMBAH ITEM
+    // =========================
     function addItem() {
-        const select = document.getElementById('temp_id');
+
+        const select =
+            document.getElementById('temp_id');
+
         const id = select.value;
-        const selected = select.options[select.selectedIndex];
-        if(!id) return Swal.fire({ icon: 'warning', title: 'Pilih Fasilitas', text: 'Silakan pilih fasilitas terlebih dahulu.' });
 
-        const nama = selected.getAttribute('data-nama');
-        const harga = parseFloat(selected.getAttribute('data-harga'));
-        const stok = parseInt(selected.getAttribute('data-stok'));
-        const qty = parseInt(document.getElementById('temp_qty').value);
-        const tglMulai = document.getElementById('temp_mulai').value;
-        const jamMulai = document.getElementById('temp_jam_mulai').value;
-        const tglSelesai = document.getElementById('temp_selesai').value;
-        const jamSelesai = document.getElementById('temp_jam_selesai').value;
+        const selected =
+            select.options[select.selectedIndex];
 
-        if(!tglMulai || !jamMulai || !tglSelesai || !jamSelesai) return Swal.fire({ icon: 'info', title: 'Waktu Belum Lengkap', text: 'Mohon isi tanggal dan jam sewa.' });
-        if(qty > stok) return Swal.fire({ icon: 'error', title: 'Stok Terbatas', text: 'Jumlah unit melebihi stok yang tersedia.' });
+        if (!id) {
 
-        const start = new Date(`${tglMulai}T${jamMulai}`);
-        const end = new Date(`${tglSelesai}T${jamSelesai}`);
-        if(start >= end) return Swal.fire({ icon: 'error', title: 'Kesalahan Waktu', text: 'Waktu mulai harus sebelum waktu selesai.' });
+            return Swal.fire({
+                icon: 'warning',
+                title: 'Pilih Fasilitas',
+                text: 'Silakan pilih fasilitas terlebih dahulu.'
+            });
+        }
 
-        // Cek tabrakan tanggal di keranjang lokal
-        const isOverlap = disabledDatesRaw.some(b => {
-            if(b.id_fasilitas == id) {
-                const bStart = new Date(b.from);
-                const bEnd = new Date(b.to);
-                const sStart = new Date(tglMulai);
-                const sEnd = new Date(tglSelesai);
-                return (sStart <= bEnd && sEnd >= bStart);
-            }
-            return false;
+        const nama =
+            selected.getAttribute('data-nama');
+
+        const harga =
+            parseFloat(
+                selected.getAttribute('data-harga')
+            );
+
+        const stok =
+            parseInt(
+                selected.getAttribute('data-stok')
+            );
+
+        const qty =
+            parseInt(
+                document.getElementById('temp_qty').value
+            );
+
+        const tglMulai =
+            document.getElementById('temp_mulai').value;
+
+        const jamMulai =
+            document.getElementById('temp_jam_mulai').value;
+
+        const tglSelesai =
+            document.getElementById('temp_selesai').value;
+
+        const jamSelesai =
+            document.getElementById('temp_jam_selesai').value;
+
+        // validasi
+        if (!tglMulai || !jamMulai || !tglSelesai || !jamSelesai) {
+
+            return Swal.fire({
+                icon: 'info',
+                title: 'Waktu Belum Lengkap',
+                text: 'Mohon isi tanggal dan jam sewa.'
+            });
+        }
+
+        if (qty > stok) {
+
+            return Swal.fire({
+                icon: 'error',
+                title: 'Stok Terbatas',
+                text: 'Jumlah unit melebihi stok yang tersedia.'
+            });
+        }
+
+        // cek waktu
+        const start =
+            new Date(`${tglMulai}T${jamMulai}`);
+
+        const end =
+            new Date(`${tglSelesai}T${jamSelesai}`);
+
+        if (start >= end) {
+
+            return Swal.fire({
+                icon: 'error',
+                title: 'Kesalahan Waktu',
+                text: 'Waktu mulai harus sebelum waktu selesai.'
+            });
+        }
+
+        // cek overlap booking
+        const isOverlap =
+            disabledDatesRaw.some(b => {
+
+                if (b.id_fasilitas == id) {
+
+                    const bookedStart =
+                        new Date(b.from);
+
+                    const bookedEnd =
+                        new Date(b.to);
+
+                    const selectedStart =
+                        new Date(tglMulai);
+
+                    const selectedEnd =
+                        new Date(tglSelesai);
+
+                    return (
+                        selectedStart <= bookedEnd &&
+                        selectedEnd >= bookedStart
+                    );
+                }
+
+                return false;
+            });
+
+        // jika bentrok
+        if (isOverlap) {
+
+            return Swal.fire({
+                icon: 'error',
+                title: 'Tanggal Sudah Dibooking',
+                text: 'Silakan pilih tanggal lain.'
+            });
+        }
+
+        // hitung hari
+        const diffTime =
+            Math.abs(end - start);
+
+        const diffDays =
+            Math.ceil(
+                diffTime / (1000 * 60 * 60 * 24)
+            );
+
+        // simpan item
+        items.push({
+
+            id,
+            nama,
+            qty,
+            harga,
+
+            mulai:
+                `${tglMulai} ${jamMulai}`,
+
+            selesai:
+                `${tglSelesai} ${jamSelesai}`,
+
+            diffDays,
+
+            subtotal:
+                diffDays * harga * qty
         });
 
-        if(isOverlap) return Swal.fire({ icon: 'error', title: 'Tanggal Sudah Dipesan', text: 'Fasilitas sudah dibooking pada tanggal tersebut.' });
-
-        const diffTime = Math.abs(end - start);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-        items.push({ id, nama, qty, harga, mulai: `${tglMulai} ${jamMulai}`, selesai: `${tglSelesai} ${jamSelesai}`, diffDays, subtotal: diffDays * harga * qty });
+        // render
         renderTable();
-        select.value = ""; 
-        document.getElementById('temp_qty').value = 1;
-        document.getElementById('stok_info').innerText = "";
+
+        // reset form
+        select.value = "";
+
+        document.getElementById(
+            'temp_qty'
+        ).value = 1;
+
+        document.getElementById(
+            'temp_mulai'
+        ).value = "";
+
+        document.getElementById(
+            'temp_selesai'
+        ).value = "";
+
+        document.getElementById(
+            'temp_jam_mulai'
+        ).value = "";
+
+        document.getElementById(
+            'temp_jam_selesai'
+        ).value = "";
+
+        document.getElementById(
+            'stok_info'
+        ).innerText = "";
+
         initPickers([]);
     }
 
+    // =========================
+    // RENDER TABLE
+    // =========================
     function renderTable() {
-        const tbody = document.getElementById('cartItems');
+
+        const tbody =
+            document.getElementById('cartItems');
+
         tbody.innerHTML = "";
+
         let total = 0;
+
         items.forEach((item, index) => {
+
             total += item.subtotal;
-            tbody.innerHTML += `<tr><td data-label="Fasilitas & Qty" style="padding: 12px; border: 1px solid #e5e7eb; text-align: center;"><strong style="font-size: 1.1em;">${item.nama}</strong><br><span>${item.qty} Unit</span><br><small style="color: #6b7280;">(${formatRupiah(item.harga)} / unit / hari)</small><input type="hidden" name="items[${index}][id_fasilitas]" value="${item.id}"><input type="hidden" name="items[${index}][jumlah_sewa]" value="${item.qty}"></td><td data-label="Periode" style="padding: 12px; border: 1px solid #e5e7eb; text-align: center; font-size: 0.9em;"><div style="margin-bottom: 5px;"><span style="color: #6b7280; font-weight: bold;">Dari:</span> ${item.mulai}</div><div style="margin-bottom: 5px;"><span style="color: #6b7280; font-weight: bold;">Sampai:</span> ${item.selesai}</div><span style="background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; display: inline-block;">${item.diffDays} Hari</span><input type="hidden" name="items[${index}][tgl_mulai]" value="${item.mulai}"><input type="hidden" name="items[${index}][tgl_selesai]" value="${item.selesai}"></td><td data-label="Subtotal" style="padding: 12px; border: 1px solid #e5e7eb; text-align: right; font-weight: bold;">${formatRupiah(item.subtotal)}</td><td data-label="Aksi" style="padding: 12px; border: 1px solid #e5e7eb; text-align: center;"><button type="button" onclick="items.splice(${index},1);renderTable();" style="color: #ef4444; border: 1px solid #fecaca; background: #fef2f2; padding: 5px 12px; border-radius: 4px; cursor: pointer;">Hapus</button></td></tr>`;
+
+            tbody.innerHTML += `
+
+            <tr>
+
+                <td
+                    data-label="Fasilitas & Qty"
+                    style="padding:12px;border:1px solid #e5e7eb;text-align:center;"
+                >
+
+                    <strong style="font-size:1.1em;">
+                        ${item.nama}
+                    </strong>
+
+                    <br>
+
+                    <span>
+                        ${item.qty} Unit
+                    </span>
+
+                    <br>
+
+                    <small style="color:#6b7280;">
+                        (${formatRupiah(item.harga)} / unit / hari)
+                    </small>
+
+                    <input
+                        type="hidden"
+                        name="items[${index}][id_fasilitas]"
+                        value="${item.id}"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="items[${index}][jumlah_sewa]"
+                        value="${item.qty}"
+                    >
+
+                </td>
+
+                <td
+                    data-label="Periode"
+                    style="padding:12px;border:1px solid #e5e7eb;text-align:center;font-size:0.9em;"
+                >
+
+                    <div style="margin-bottom:5px;">
+                        <span style="color:#6b7280;font-weight:bold;">
+                            Dari:
+                        </span>
+
+                        ${item.mulai}
+                    </div>
+
+                    <div style="margin-bottom:5px;">
+                        <span style="color:#6b7280;font-weight:bold;">
+                            Sampai:
+                        </span>
+
+                        ${item.selesai}
+                    </div>
+
+                    <span
+                        style="background:#e0e7ff;color:#4338ca;padding:2px 8px;border-radius:4px;font-size:0.85em;font-weight:bold;display:inline-block;"
+                    >
+                        ${item.diffDays} Hari
+                    </span>
+
+                    <input
+                        type="hidden"
+                        name="items[${index}][tgl_mulai]"
+                        value="${item.mulai}"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="items[${index}][tgl_selesai]"
+                        value="${item.selesai}"
+                    >
+
+                </td>
+
+                <td
+                    data-label="Subtotal"
+                    style="padding:12px;border:1px solid #e5e7eb;text-align:right;font-weight:bold;"
+                >
+                    ${formatRupiah(item.subtotal)}
+                </td>
+
+                <td
+                    data-label="Aksi"
+                    style="padding:12px;border:1px solid #e5e7eb;text-align:center;"
+                >
+
+                    <button
+                        type="button"
+                        onclick="items.splice(${index},1);renderTable();"
+                        style="color:#ef4444;border:1px solid #fecaca;background:#fef2f2;padding:5px 12px;border-radius:4px;cursor:pointer;"
+                    >
+                        Hapus
+                    </button>
+
+                </td>
+
+            </tr>
+            `;
         });
-        document.getElementById('totalRow').style.display = items.length ? "table-row" : "none";
-        document.getElementById('emptyCartNote').style.display = items.length ? "none" : "block";
-        document.getElementById('grandTotalDisplay').innerText = formatRupiah(total);
-        const btn = document.getElementById('submitAll');
-        btn.disabled = !items.length; btn.style.opacity = items.length ? "1" : "0.5"; btn.style.cursor = items.length ? "pointer" : "not-allowed";
-        document.getElementById('countDisplay').innerText = items.length + " item";
+
+        // total
+        document.getElementById(
+            'totalRow'
+        ).style.display =
+            items.length
+                ? "table-row"
+                : "none";
+
+        document.getElementById(
+            'emptyCartNote'
+        ).style.display =
+            items.length
+                ? "none"
+                : "block";
+
+        document.getElementById(
+            'grandTotalDisplay'
+        ).innerText =
+            formatRupiah(total);
+
+        const btn =
+            document.getElementById('submitAll');
+
+        btn.disabled = !items.length;
+
+        btn.style.opacity =
+            items.length ? "1" : "0.5";
+
+        btn.style.cursor =
+            items.length
+                ? "pointer"
+                : "not-allowed";
+
+        document.getElementById(
+            'countDisplay'
+        ).innerText =
+            items.length + " item";
     }
 
+    // =========================
+    // SUBMIT
+    // =========================
     document.getElementById('mainForm').onsubmit = function(e) {
-        if (items.length === 0) { e.preventDefault(); Swal.fire({ icon: 'warning', title: 'Keranjang Kosong', text: 'Tambahkan minimal satu fasilitas.' }); return false; }
-        const btn = document.getElementById('submitAll');
-        btn.disabled = true; btn.innerHTML = `<span class="loader"></span> Sedang Mengirim...`;
+
+        if (items.length === 0) {
+
+            e.preventDefault();
+
+            Swal.fire({
+                icon: 'warning',
+                title: 'Keranjang Kosong',
+                text: 'Tambahkan minimal satu fasilitas.'
+            });
+
+            return false;
+        }
+
+        const btn =
+            document.getElementById('submitAll');
+
+        btn.disabled = true;
+
+        btn.innerHTML =
+            `<span class="loader"></span> Sedang Mengirim...`;
     };
 </script>
 @endsection

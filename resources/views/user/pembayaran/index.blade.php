@@ -11,20 +11,24 @@
         font-family: 'Plus Jakarta Sans', sans-serif;
         color: #1e293b;
     }
+
     .checkout-container {
         max-width: 480px;
         margin: 40px auto;
         padding: 0 20px;
     }
+
     .main-card {
         border: none;
         border-radius: 28px;
         background: #ffffff;
         padding: 32px;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04),
+                    0 8px 10px -6px rgba(0, 0, 0, 0.04);
         position: relative;
         overflow: hidden;
     }
+
     .main-card::before {
         content: '';
         position: absolute;
@@ -32,7 +36,9 @@
         right: -50px;
         width: 150px;
         height: 150px;
-        background: radial-gradient(circle, rgba(62, 71, 244, 0.05) 0%, rgba(255,255,255,0) 70%);
+        background: radial-gradient(circle,
+                rgba(62, 71, 244, 0.05) 0%,
+                rgba(255,255,255,0) 70%);
         border-radius: 50%;
     }
 
@@ -47,7 +53,7 @@
         margin: 0 auto 20px;
         padding: 10px;
     }
-    
+
     .booking-id {
         font-size: 0.7rem;
         text-transform: uppercase;
@@ -64,10 +70,12 @@
     .amount-section {
         margin-bottom: 30px;
     }
+
     .amount-title {
         font-size: 0.85rem;
         color: #64748b;
     }
+
     .amount-value {
         font-size: 2.5rem;
         font-weight: 800;
@@ -82,18 +90,22 @@
         padding: 8px 16px;
         margin-bottom: 24px;
     }
+
     .detail-item {
         display: flex;
         justify-content: space-between;
         padding: 12px 0;
     }
+
     .detail-item:not(:last-child) {
         border-bottom: 1px solid #f8fafc;
     }
+
     .detail-label {
         color: #94a3b8;
         font-size: 0.85rem;
     }
+
     .detail-value {
         font-weight: 600;
         color: #334155;
@@ -107,6 +119,7 @@
         margin-top: 10px;
         border: 1px dashed #cbd5e1;
     }
+
     .custom-input-group {
         display: flex;
         align-items: center;
@@ -116,15 +129,18 @@
         padding: 12px 16px;
         transition: all 0.2s ease;
     }
+
     .custom-input-group:focus-within {
         border-color: #3e47f4;
         box-shadow: 0 0 0 4px rgba(62, 71, 244, 0.1);
     }
+
     .currency-prefix {
         font-weight: 700;
         color: #3e47f4;
         margin-right: 10px;
     }
+
     .styled-input {
         border: none;
         outline: none;
@@ -146,12 +162,14 @@
         margin-top: 24px;
         transition: all 0.3s;
     }
+
     .btn-pay-now:hover {
         background: #2d36d9;
         transform: translateY(-2px);
         box-shadow: 0 10px 20px rgba(62, 71, 244, 0.2);
         color: #fff;
     }
+
     .btn-back {
         color: #94a3b8;
         text-decoration: none;
@@ -160,6 +178,7 @@
         display: inline-block;
         margin-top: 20px;
     }
+
     .sisa-badge {
         background: #fffbeb;
         color: #b45309;
@@ -172,27 +191,51 @@
     }
 </style>
 
+@php
+    $terbayar = $penyewaan->pembayaran->sum('jumlah_bayar');
+    $sisaTagihanFinal = $penyewaan->total_harga - $terbayar;
+
+    // NILAI YANG AKAN DITAMPILKAN DI INPUT
+    if(isset($snapToken)) {
+        $nominalAwal = $pembayaran->jumlah_bayar;
+    } else {
+        // kalau sudah pernah bayar → tampilkan sisa
+        if($terbayar > 0){
+            $nominalAwal = $sisaTagihanFinal;
+        } else {
+            // kalau belum pernah bayar → tampilkan DP 50%
+            $nominalAwal = round($penyewaan->total_harga * 0.5);
+        }
+    }
+@endphp
+
 <div class="container checkout-container">
     <div class="main-card text-center">
+
         <div class="brand-logo">
-            <img src="{{ asset('images/LOGODESA.png') }}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
+            <img src="{{ asset('images/LOGODESA.png') }}"
+                 alt="Logo"
+                 style="width:100%; height:100%; object-fit:contain;">
         </div>
 
-        <span class="booking-id">#{{ $penyewaan->kode_booking }}</span>
-        
+        <span class="booking-id">
+            #{{ $penyewaan->kode_booking }}
+        </span>
+
         <div class="amount-section">
-            <p class="amount-title mb-1">Total Tagihan Fasilitas</p>
-            <h2 class="amount-value">Rp{{ number_format($penyewaan->total_harga, 0, ',', '.') }}</h2>
-            
-            {{-- Hitung sisa bayar secara real-time di view jika sisaTagihan dari controller belum masuk --}}
-            @php
-                $terbayar = $penyewaan->pembayaran->where('status_pembayaran', 'berhasil')->sum('jumlah_bayar');
-                $sisaTagihanFinal = $penyewaan->total_harga - $terbayar;
-            @endphp
+            <p class="amount-title mb-1">
+                Total Tagihan Fasilitas
+            </p>
+
+            <h2 class="amount-value">
+                Rp{{ number_format($penyewaan->total_harga, 0, ',', '.') }}
+            </h2>
 
             @if($terbayar > 0)
                 <div class="sisa-badge mt-2">
-                    <i class="bi bi-info-circle-fill me-1"></i> Sisa Bayar: Rp{{ number_format($sisaTagihanFinal, 0, ',', '.') }}
+                    <i class="bi bi-info-circle-fill me-1"></i>
+                    Sisa Bayar:
+                    Rp{{ number_format($sisaTagihanFinal, 0, ',', '.') }}
                 </div>
             @endif
         </div>
@@ -200,38 +243,56 @@
         <div class="detail-box text-start">
             <div class="detail-item">
                 <span class="detail-label">Fasilitas</span>
-                <span class="detail-value">{{ $penyewaan->fasilitas->nama_fasilitas }}</span>
+
+                <span class="detail-value">
+                    {{ $penyewaan->fasilitas->nama_fasilitas }}
+                </span>
             </div>
+
             <div class="detail-item">
                 <span class="detail-label">Waktu</span>
+
                 <span class="detail-value">
-                    {{ \Carbon\Carbon::parse($penyewaan->tgl_mulai)->format('d M') }} - {{ \Carbon\Carbon::parse($penyewaan->tgl_selesai)->format('d M Y') }}
+                    {{ \Carbon\Carbon::parse($penyewaan->tgl_mulai)->format('d M') }}
+                    -
+                    {{ \Carbon\Carbon::parse($penyewaan->tgl_selesai)->format('d M Y') }}
                 </span>
             </div>
         </div>
 
-        <form action="{{ route('user.pembayaran.proses', $penyewaan->id_penyewaan) }}" method="POST" id="payment-form">
+        <form action="{{ route('user.pembayaran.proses', $penyewaan->id_penyewaan) }}"
+              method="POST"
+              id="payment-form">
+
             @csrf
+
             <div class="input-nominal-box text-start">
-                <label class="detail-label d-block mb-2 fw-bold text-dark">Masukkan Nominal Bayar</label>
-                
+
+                <label class="detail-label d-block mb-2 fw-bold text-dark">
+                    Masukkan Nominal Bayar
+                </label>
+
                 <div class="custom-input-group">
+
                     <span class="currency-prefix">Rp</span>
-                    <!-- Input Tampilan: Mengambil sisaTagihanFinal agar otomatis terisi angka pelunasan -->
-                    <input type="text" id="nominal_display" 
-                           class="styled-input @error('nominal_bayar') is-invalid @enderror" 
+
+                    <input type="text"
+                           id="nominal_display"
+                           class="styled-input @error('nominal_bayar') is-invalid @enderror"
                            placeholder="0"
-                           value="{{ old('nominal_bayar', isset($snapToken) ? $pembayaran->jumlah_bayar : $sisaTagihanFinal) }}"
+                           value="{{ number_format($nominalAwal, 0, ',', '.') }}"
                            {{ isset($snapToken) ? 'readonly' : '' }}>
-                    
-                    <!-- Input Hidden: Data asli yang dikirim ke Controller -->
-                    <input type="hidden" name="nominal_bayar" id="nominal_asli" 
-                           value="{{ old('nominal_bayar', isset($snapToken) ? $pembayaran->jumlah_bayar : $sisaTagihanFinal) }}">
+
+                    <input type="hidden"
+                           name="nominal_bayar"
+                           id="nominal_asli"
+                           value="{{ $nominalAwal }}">
                 </div>
 
                 @error('nominal_bayar')
                     <div class="text-danger mt-2" style="font-size: 0.75rem;">
-                        <i class="bi bi-exclamation-circle me-1"></i> {{ $message }}
+                        <i class="bi bi-exclamation-circle me-1"></i>
+                        {{ $message }}
                     </div>
                 @enderror
             </div>
@@ -244,14 +305,24 @@
         </form>
 
         @if(isset($snapToken))
-            <button id="pay-button" class="btn btn-pay-now" style="background: #10b981;">
-                <i class="bi bi-shield-lock-fill me-2"></i>Bayar Sekarang (Rp{{ number_format($pembayaran->jumlah_bayar, 0, ',', '.') }})
+            <button id="pay-button"
+                    class="btn btn-pay-now"
+                    style="background:#10b981;">
+
+                <i class="bi bi-shield-lock-fill me-2"></i>
+
+                Bayar Sekarang
+                (Rp{{ number_format($pembayaran->jumlah_bayar, 0, ',', '.') }})
             </button>
         @endif
 
-        <a href="{{ route('user.penyewaan.index') }}" class="btn btn-back">
-            <i class="bi bi-arrow-left me-1"></i> Kembali ke riwayat
+        <a href="{{ route('user.penyewaan.index') }}"
+           class="btn btn-back">
+
+            <i class="bi bi-arrow-left me-1"></i>
+            Kembali ke riwayat
         </a>
+
     </div>
 </div>
 
@@ -259,37 +330,37 @@
     const displayInput = document.getElementById('nominal_display');
     const hiddenInput = document.getElementById('nominal_asli');
 
-    // Fungsi Helper format Rupiah
-    const formatRupiah = (angka) => {
+    function formatRupiah(angka) {
         return new Intl.NumberFormat('id-ID').format(angka);
-    };
+    }
 
-    // Listener Input saat user mengetik manual
-    displayInput.addEventListener('input', function(e) {
-        let value = this.value.replace(/[^0-9]/g, '');
-        if (value) {
-            hiddenInput.value = value;
-            this.value = formatRupiah(value);
-        } else {
-            hiddenInput.value = '';
-            this.value = '';
-        }
-    });
+    if(displayInput){
 
-    // Inisialisasi tampilan saat halaman dimuat
-    // Memastikan angka sisa (misal 20174) langsung terformat jadi 20.174
-    window.addEventListener('DOMContentLoaded', (event) => {
-        if(hiddenInput.value) {
-            displayInput.value = formatRupiah(hiddenInput.value);
-        }
-    });
+        displayInput.addEventListener('input', function () {
+
+            let angka = this.value.replace(/[^0-9]/g, '');
+
+            hiddenInput.value = angka;
+
+            if (angka) {
+                this.value = formatRupiah(angka);
+            } else {
+                this.value = '';
+            }
+        });
+
+    }
 </script>
 
 @if(isset($snapToken))
-<script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="{{ config('services.midtrans.client_key') }}"></script>
+
+<script src="https://app.sandbox.midtrans.com/snap/snap.js"
+        data-client-key="{{ config('services.midtrans.client_key') }}">
+</script>
+
 <script>
-    // Langsung buka Midtrans saat SnapToken ada
-    window.onload = function() {
+
+    window.onload = function () {
         triggerSnap();
     };
 
@@ -298,13 +369,24 @@
     };
 
     function triggerSnap() {
+
         snap.pay('{{ $snapToken }}', {
-            onSuccess: function(result) { window.location.href = "{{ route('user.penyewaan.index') }}"; },
-            onPending: function(result) { window.location.href = "{{ route('user.penyewaan.index') }}"; },
-            onError: function(result) { alert('Terjadi kesalahan, silakan coba lagi.'); }
+
+            onSuccess: function(result) {
+                window.location.href = "{{ route('user.penyewaan.index') }}";
+            },
+
+            onPending: function(result) {
+                window.location.href = "{{ route('user.penyewaan.index') }}";
+            },
+
+            onError: function(result) {
+                alert('Terjadi kesalahan, silakan coba lagi.');
+            }
         });
     }
 </script>
+
 @endif
 
 @endsection

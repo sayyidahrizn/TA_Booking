@@ -150,7 +150,7 @@
         <a href="{{ route('admin.dashboard') }}">Dashboard</a>
         <a href="{{ route('fasilitas.index') }}">Kelola Fasilitas</a>
         <a href="{{ route('users.index') }}">Kelola User</a>
-        <a href="{{ route('admin.penyewaan.index') }}">Kelola Booking</a>
+        <a href="{{ route('admin.penyewaan.index') }}">Kelola Penyewaan</a>
         <a href="{{ route('admin.pembayaran.index') }}">Kelola Pembayaran</a>
         <a href="{{ route('admin.pengembalian') }}">Kelola Pengembalian</a>
         <a href="#">Laporan</a>

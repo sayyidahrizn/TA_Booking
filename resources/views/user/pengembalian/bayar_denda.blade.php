@@ -11,26 +11,26 @@
                 <div class="card-body p-4">
                     <div class="text-center mb-4">
                         <h6 class="text-muted mb-1">Total yang harus dibayar:</h6>
-                        <h2 class="fw-bold text-danger">Rp {{ number_format($pengembalian->total_denda, 0, ',', '.') }}</h2>
+                        <h2 class="fw-bold text-danger">Rp {{ number_format($denda->total_denda, 0, ',', '.') }}</h2>
                     </div>
 
                     <div class="bg-light p-3 rounded-3 mb-4 border">
                         <div class="d-flex justify-content-between mb-2">
                             <span class="text-muted">Fasilitas:</span>
-                            <span class="fw-bold text-dark">{{ $pengembalian->penyewaan->fasilitas->nama_fasilitas }}</span>
+                            <span class="fw-bold text-dark">{{ $denda->penyewaan->fasilitas->nama_fasilitas }}</span>
                         </div>
                         <div class="d-flex justify-content-between mb-2">
                             <span class="text-muted">Denda Keterlambatan:</span>
-                            <span class="text-dark">Rp {{ number_format($pengembalian->denda_telat, 0, ',', '.') }}</span>
+                            <span class="text-dark">Rp {{ number_format($denda->denda_telat, 0, ',', '.') }}</span>
                         </div>
                         <div class="d-flex justify-content-between mb-2">
                             <span class="text-muted">Denda Kerusakan:</span>
-                            <span class="text-dark">Rp {{ number_format($pengembalian->denda_rusak, 0, ',', '.') }}</span>
+                            <span class="text-dark">Rp {{ number_format($denda->denda_rusak, 0, ',', '.') }}</span>
                         </div>
                         <hr>
                         <div class="small">
                             <strong class="text-muted">Catatan Admin:</strong><br>
-                            <p class="mb-0 italic text-secondary">{{ $pengembalian->catatan_admin ?? 'Tidak ada catatan khusus dari admin.' }}</p>
+                            <p class="mb-0 italic text-secondary">{{ $denda->catatan_admin ?? 'Tidak ada catatan khusus dari admin.' }}</p>
                         </div>
                     </div>
 

@@ -38,19 +38,24 @@
                     $p = $group->first();
                     $statusSewa = strtolower($p->status_sewa);
                     
-                    // Total tagihan seluruh grup (BOOKING CODE yang sama)
-                    $totalHargaGrup = $group->sum('total_harga');
+                    // ========================================================================
+                    // PERBAIKAN LOGIKA: HITUNG LANGSUNG DARI DATABASE AGAR AKURAT
+                    // ========================================================================
+                    
+                    // 1. Ambil Total Tagihan asli dari semua item penyewaan dengan kode booking ini
+                    $totalHargaGrup = \App\Models\Penyewaan::where('kode_booking', $kode_booking)->sum('total_harga');
 
-                    // Ambil semua record pembayaran terkait grup ini 
-                    // (Hanya menghitung yang berstatus 'berhasil' atau 'diverifikasi')
-                    $totalMasuk = $group->flatMap->pembayaran
+                    // 2. Ambil Total Pembayaran yang statusnya 'berhasil' untuk seluruh item di kode booking ini
+                    $totalMasuk = \App\Models\Pembayaran::whereHas('penyewaan', function($q) use ($kode_booking) {
+                                        $q->where('kode_booking', $kode_booking);
+                                    })
                                     ->whereIn('status_pembayaran', ['berhasil', 'diverifikasi'])
                                     ->sum('jumlah_bayar');
                     
-                    // Logika Status Bayar
-                    $lunas = $totalMasuk >= $totalHargaGrup;
-                    $sudahAdaBayar = $totalMasuk > 0;
+                    // 3. Tentukan status lunas dengan toleransi selisih kecil (misal pembulatan)
                     $sisaTagihan = $totalHargaGrup - $totalMasuk;
+                    $lunas = $sisaTagihan <= 0; 
+                    $sudahAdaBayar = $totalMasuk > 0;
 
                     // ID penyewaan pertama untuk link target pembayaran
                     $idUntukBayar = $p->id_penyewaan; 
@@ -114,7 +119,6 @@
                     </td>
 
                     <td style="padding: 20px 24px; text-align: center;">
-                        {{-- Aksi Cetak muncul jika totalMasuk > 0 (baik DP maupun Lunas) --}}
                         @if($sudahAdaBayar)
                             <a href="{{ route('user.penyewaan.bukti', $kode_booking) }}" target="_blank" 
                                style="display: inline-flex; align-items: center; gap: 6px; color: #4f46e5; text-decoration: none; font-weight: 700; border: 2px solid #e0e7ff; padding: 8px 14px; border-radius: 10px; font-size: 13px; transition: all 0.2s;"

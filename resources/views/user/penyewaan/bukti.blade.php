@@ -68,8 +68,8 @@
             <img src="{{ asset('images/LOGODESA.png') }}" class="logo" alt="Logo Desa">
             <div class="desa-info">
                 <h2>PEMERINTAH DESA KESAMBEN KAB.BLITAR</h2>
-                <p>Kecamatan Sumber, Kabupaten Tulungagung, Jawa Timur</p>
-                <p>Email: desa-sumberagung@tulungagung.go.id | Kode Pos: 662xx</p>
+                <p>Jl. Jaksa Agung Suprapto No.01, Kesamben, Kec. Kesamben, Kabupaten Blitar, Jawa Timur </p>
+                <p>Instagram: @pemdes_kesamben | Facebook: Pemdes Kesamben | Kode Pos:61419</p>
             </div>
         </div>
 

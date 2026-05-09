@@ -72,8 +72,15 @@ class PengembalianController extends Controller
                     ]);
                 }
 
+                // tentukan status penyewaan
+                $statusSewa = $total_denda > 0
+                    ? 'menunggu_pembayaran_denda'
+                    : 'selesai';
+
                 // Update status penyewaan utama
-                $item->penyewaan->update(['status_sewa' => 'selesai']);
+                $item->penyewaan->update([
+                    'status_sewa' => $statusSewa
+                ]);
             }
 
             DB::commit();
