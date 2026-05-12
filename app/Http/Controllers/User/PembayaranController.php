@@ -409,6 +409,8 @@ class PembayaranController extends Controller
                     'midtrans',
             ]);
 
+            $totalBayar = $totalTerbayar;
+
             return view(
                 'user.pembayaran.index',
                 compact(
@@ -417,7 +419,8 @@ class PembayaranController extends Controller
                     'snapToken',
                     'sisaTagihan',
                     'totalTagihan',
-                    'totalTerbayar'
+                    'totalTerbayar',
+                    'semuaFasilitas'
                 )
             );
 
