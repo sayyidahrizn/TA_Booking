@@ -42,17 +42,28 @@ class PembayaranController extends Controller
         ->where('id_user', Auth::id())
         ->findOrFail($id);
 
-        $semuaFasilitas = Penyewaan::where('kode_booking', $kodeBooking)
-            ->with('fasilitas')
-            ->get()
-            ->pluck('fasilitas.nama_fasilitas')
-            ->implode(', ');
+        // =========================================
+        // AMBIL KODE BOOKING
+        // =========================================
+
+        $kodeBooking = $penyewaan->kode_booking;
+
+        // =========================================
+        // AMBIL SEMUA FASILITAS DALAM 1 BOOKING
+        // =========================================
+
+        $semuaFasilitas = Penyewaan::where(
+            'kode_booking',
+            $kodeBooking
+        )
+        ->with('fasilitas')
+        ->get()
+        ->pluck('fasilitas.nama_fasilitas')
+        ->implode(', ');
 
         // =========================================
         // TOTAL SELURUH TAGIHAN DALAM 1 BOOKING
         // =========================================
-
-        $kodeBooking = $penyewaan->kode_booking;
 
         $totalTagihan = Penyewaan::where(
             'kode_booking',
@@ -175,6 +186,10 @@ class PembayaranController extends Controller
             }
         ])
         ->findOrFail($id);
+
+        // =========================================
+        // AMBIL KODE BOOKING
+        // =========================================
 
         $kodeBooking = $penyewaan->kode_booking;
 
