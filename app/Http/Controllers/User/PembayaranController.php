@@ -42,6 +42,12 @@ class PembayaranController extends Controller
         ->where('id_user', Auth::id())
         ->findOrFail($id);
 
+        $semuaFasilitas = Penyewaan::where('kode_booking', $kodeBooking)
+            ->with('fasilitas')
+            ->get()
+            ->pluck('fasilitas.nama_fasilitas')
+            ->implode(', ');
+
         // =========================================
         // TOTAL SELURUH TAGIHAN DALAM 1 BOOKING
         // =========================================
@@ -128,7 +134,8 @@ class PembayaranController extends Controller
                 'pembayaran',
                 'sisaTagihan',
                 'totalTagihan',
-                'totalBayar'
+                'totalBayar',
+                'semuaFasilitas'
             )
         );
     }

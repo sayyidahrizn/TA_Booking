@@ -192,19 +192,17 @@
 </style>
 
 @php
-    $terbayar = $penyewaan->pembayaran->sum('jumlah_bayar');
-    $sisaTagihanFinal = $penyewaan->total_harga - $terbayar;
+    $terbayar = $totalBayar; // Gunakan totalBayar dari controller
+    $sisaTagihanFinal = $sisaTagihan; // Gunakan sisaTagihan dari controller
 
-    // NILAI YANG AKAN DITAMPILKAN DI INPUT
     if(isset($snapToken)) {
         $nominalAwal = $pembayaran->jumlah_bayar;
     } else {
-        // kalau sudah pernah bayar → tampilkan sisa
         if($terbayar > 0){
             $nominalAwal = $sisaTagihanFinal;
         } else {
-            // kalau belum pernah bayar → tampilkan DP 50%
-            $nominalAwal = round($penyewaan->total_harga * 0.5);
+            // Gunakan $totalTagihan (akumulasi), bukan $penyewaan->total_harga (satuan)
+            $nominalAwal = round($totalTagihan * 0.5);
         }
     }
 @endphp
@@ -228,7 +226,7 @@
             </p>
 
             <h2 class="amount-value">
-                Rp{{ number_format($penyewaan->total_harga, 0, ',', '.') }}
+                Rp{{ number_format($totalTagihan, 0, ',', '.') }}
             </h2>
 
             @if($terbayar > 0)
@@ -243,9 +241,9 @@
         <div class="detail-box text-start">
             <div class="detail-item">
                 <span class="detail-label">Fasilitas</span>
-
                 <span class="detail-value">
-                    {{ $penyewaan->fasilitas->nama_fasilitas }}
+                    {{-- Ubah ke variabel baru agar muncul semua fasilitas --}}
+                    {{ $semuaFasilitas }}
                 </span>
             </div>
 
