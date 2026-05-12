@@ -17,10 +17,14 @@ class Pengembalian extends Model
     ];
 
     /**
-     * Relasi balik ke Penyewaan
+     * Relasi ke Penyewaan
      */
     public function penyewaan()
     {
-        return $this->belongsTo(Penyewaan::class, 'id_penyewaan', 'id_penyewaan');
+        return $this->belongsTo(
+            Penyewaan::class,
+            'id_penyewaan',
+            'id_penyewaan'
+        );
     }
 }

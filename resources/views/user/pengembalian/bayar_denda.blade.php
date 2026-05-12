@@ -48,7 +48,12 @@
 </div>
 
 {{-- Skrip Midtrans Snap --}}
-<script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="{{ config('midtrans.client_key') }}"></script>
+<script 
+    src="https://app.sandbox.midtrans.com/snap/snap.js"
+    data-client-key="{{ config('services.midtrans.client_key') }}">
+</script>
+
+{{-- Skrip Pembayaran --}}
 <script type="text/javascript">
     const payButton = document.getElementById('pay-button');
     payButton.addEventListener('click', function () {

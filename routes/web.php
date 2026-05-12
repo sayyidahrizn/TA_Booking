@@ -121,6 +121,6 @@ Route::prefix('admin')->middleware(['auth', 'isAdmin'])->group(function () {
 | CALLBACK MIDTRANS
 |--------------------------------------------------------------------------
 */
-Route::post('/midtrans/callback', [UserPenyewaan::class, 'callback'])->name('midtrans.callback');
+Route::post('/midtrans/callback',[PembayaranController::class, 'callback'])->name('midtrans.callback');
 
 require __DIR__ . '/auth.php';

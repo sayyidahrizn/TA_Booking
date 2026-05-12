@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Exception;
+use Midtrans\Snap;
 
 class PengembalianController extends Controller
 {
@@ -330,46 +331,161 @@ class PengembalianController extends Controller
 
     public function bayarDenda($id)
     {
-        // Mencari data di tabel Denda
-        $denda = Denda::with(['penyewaan.fasilitas', 'penyewaan.user'])->findOrFail($id);
-        
-        \Midtrans\Config::$serverKey = config('services.midtrans.server_key');
-        \Midtrans\Config::$isProduction = config('services.midtrans.is_production', false);
+        // =========================================
+        // AMBIL DATA DENDA
+        // =========================================
+
+        $denda = Denda::with([
+            'penyewaan.fasilitas',
+            'penyewaan.user'
+        ])->findOrFail($id);
+
+        // =========================================
+        // KONFIGURASI MIDTRANS
+        // =========================================
+
+        \Midtrans\Config::$serverKey =
+            config('services.midtrans.server_key');
+
+        \Midtrans\Config::$isProduction =
+            config('services.midtrans.is_production', false);
+
         \Midtrans\Config::$isSanitized = true;
+
         \Midtrans\Config::$is3ds = true;
 
-        // Gunakan snap_token yang sudah ada di tabel denda jika tersedia
+        // =========================================
+        // CEK STATUS DENDA
+        // =========================================
+
+        if ($denda->status_denda == 'lunas') {
+
+            return redirect()
+                ->route('user.pengembalian')
+                ->with(
+                    'success',
+                    'Denda sudah dibayar.'
+                );
+        }
+
+        // =========================================
+        // JIKA SUDAH ADA SNAP TOKEN
+        // =========================================
+
         if ($denda->snap_token) {
+
             $snapToken = $denda->snap_token;
+
         } else {
-            $orderId = 'DENDA-' . $denda->id_denda . '-' . time();
+
+            // =========================================
+            // ORDER ID
+            // =========================================
+
+            $orderId =
+                'DENDA-' .
+                $denda->id_denda .
+                '-' .
+                time();
+
+            // =========================================
+            // PARAMETER MIDTRANS
+            // =========================================
+
             $params = [
+
                 'transaction_details' => [
-                    'order_id' => $orderId,
-                    'gross_amount' => (int) $denda->total_denda,
+
+                    'order_id' =>
+                        $orderId,
+
+                    'gross_amount' =>
+                        (int) $denda->total_denda,
                 ],
+
                 'customer_details' => [
-                    'first_name' => Auth::user()->name,
-                    'email' => Auth::user()->email,
+
+                    'first_name' =>
+                        Auth::user()->name,
+
+                    'email' =>
+                        Auth::user()->email,
                 ],
+
                 'item_details' => [
+
                     [
-                        'id' => 'DND-' . $denda->id_denda,
-                        'price' => (int) $denda->total_denda,
+
+                        'id' =>
+                            'DND-' .
+                            $denda->id_denda,
+
+                        'price' =>
+                            (int) $denda->total_denda,
+
                         'quantity' => 1,
-                        'name' => 'Denda: ' . $denda->penyewaan->fasilitas->nama_fasilitas,
+
+                        'name' =>
+                            'Denda ' .
+                            $denda->penyewaan
+                            ->fasilitas
+                            ->nama_fasilitas,
                     ]
+                ],
+
+                // =========================================
+                // CALLBACK FINISH
+                // =========================================
+
+                'callbacks' => [
+
+                    'finish' =>
+                        route('user.pengembalian')
                 ]
             ];
 
             try {
-                $snapToken = \Midtrans\Snap::getSnapToken($params);
-                $denda->update(['snap_token' => $snapToken]);
-            } catch (Exception $e) {
-                return back()->with('error', 'Gagal memproses pembayaran: ' . $e->getMessage());
+
+                // =========================================
+                // GENERATE SNAP TOKEN
+                // =========================================
+
+                $snapToken =
+                    \Midtrans\Snap::getSnapToken($params);
+
+                // =========================================
+                // SIMPAN TOKEN
+                // =========================================
+
+                $denda->update([
+
+                    'snap_token' =>
+                        $snapToken
+                ]);
+
+            } catch (\Exception $e) {
+
+                return back()->with(
+
+                    'error',
+
+                    'Gagal memproses pembayaran: '
+
+                    . $e->getMessage()
+                );
             }
         }
 
-        return view('user.pengembalian.bayar', compact('denda', 'snapToken'));
+        // =========================================
+        // VIEW
+        // =========================================
+
+        return view(
+            'user.pengembalian.bayar_denda',
+            compact(
+                'denda',
+                'snapToken'
+            )
+        );
     }
 }

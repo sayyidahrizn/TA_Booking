@@ -14,17 +14,17 @@
     .page-title {
         font-size: 2.5rem;
         font-weight: 800;
-        color: #1a202c;
+        color: #5b5f65;
         margin-bottom: 30px;
     }
 
     .card-custom {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        padding: 30px;
-        margin-bottom: 40px;
-        border: 2px solid #dee2e6;
+        background: #ffffff;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        border: none;
+        padding: 25px;
+        margin-bottom: 30px;
     }
 
     /* Section Denda */
@@ -51,26 +51,35 @@
         color: white;
     }
 
-    .table-pengembalian {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 0;
-        border: 2px solid #2d3748;
+    .table-responsive {
+        border-radius: 15px;
+        overflow: hidden;
+        border: none !important;
+        box-shadow: 0 0 0 1px #e2e8f0; /* Soft border substitute */
     }
 
-    .table-pengembalian th {
-        background-color: #f1f5f9 !important;
-        color: #1a202c !important;
-        font-weight: 800;
+    .table-pengembalian {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        border: none !important;
+    }
+
+    .table-pengembalian thead th {
+        background-color: #c1c3c5 !important;
+        color: #64748b !important;
+        font-weight: 700;
         text-transform: uppercase;
-        font-size: 0.85rem;
-        border: 2px solid #2d3748 !important;
-        padding: 15px;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        padding: 16px;
+        border-bottom: 2px solid #edf2f7 !important;
+        border-top: none !important;
         text-align: center;
     }
 
     .table-pengembalian td {
-        border: 1px solid #2d3748 !important;
+        border: 1px solid #ddd !important;
         padding: 12px;
         vertical-align: middle;
         text-align: center;

@@ -167,11 +167,6 @@
         <a href="{{ route('users.create') }}" class="btn btn-add">
             + Tambah User
         </a>
-
-        {{-- ✅ TOMBOL LAPORAN SUDAH DIPERBAIKI --}}
-        <a href="{{ route('admin.laporan') }}" class="btn btn-report">
-            <i class="fa-solid fa-chart-line"></i> Laporan
-        </a>
     </div>
 
     <form action="{{ route('users.index') }}" method="GET" class="search-filter-wrapper">
