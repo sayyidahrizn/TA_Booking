@@ -116,12 +116,7 @@
                     <td style="padding: 20px 24px; text-align: center;">
                         <div style="display: flex; flex-direction: column; gap: 5px; align-items: center;">
                             @forelse($listPembayaranBerhasil as $bukti)
-                                <a href="{{ route('user.cetak_bukti', $bukti->id) }}" target="_blank" 
-                                   style="display: inline-flex; align-items: center; gap: 6px; color: #4f46e5; text-decoration: none; font-weight: 700; border: 2px solid #e0e7ff; padding: 6px 12px; border-radius: 8px; font-size: 11px; transition: all 0.2s; width: 100%; justify-content: center;"
-                                   onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='transparent'">
-                                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                        <path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-                                    </svg>
+                                <a href="{{ route('user.penyewaan.bukti', $kode_booking) }}" target="_blank" ...>
                                     Cetak {{ strtoupper($bukti->jenis_pembayaran) }}
                                 </a>
                             @empty
