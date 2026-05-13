@@ -103,108 +103,28 @@ class PembayaranController extends Controller
     }
 
     /**
-     * PROSES PEMBAYARAN (GENERATE SNAP TOKEN)
-     */
-    public function proses(Request $request, $id)
-    {
-        // Bersihkan format titik pada input nominal
-        $cleanNominal = str_replace('.', '', $request->nominal_bayar);
-        $request->merge(['nominal_bayar' => $cleanNominal]);
-
-        $penyewaan = Penyewaan::findOrFail($id);
-        $kodeBooking = $penyewaan->kode_booking;
-        
-        // AMBIL KEMBALI FASILITAS UNTUK VIEW (Menghindari error Undefined Variable)
-        $semuaFasilitas = $this->getDaftarFasilitas($kodeBooking);
-
-        $totalTagihan = Penyewaan::where('kode_booking', $kodeBooking)->sum('total_harga');
-
-        $totalTerbayar = Pembayaran::whereHas('penyewaan', function ($q) use ($kodeBooking) {
-                $q->where('kode_booking', $kodeBooking);
-            })
-            ->where('status_pembayaran', 'berhasil')
-            ->sum('jumlah_bayar');
-
-        $sisaTagihan = $totalTagihan - $totalTerbayar;
-
-        // Validasi Nominal (DP 50% atau Pelunasan Sisa)
-        if ($totalTerbayar <= 0) {
-            $minBayar = round($totalTagihan * 0.5);
-            $maxBayar = $totalTagihan;
-            $pesanMin = 'Minimal pembayaran DP adalah Rp ' . number_format($minBayar, 0, ',', '.');
-        } else {
-            $minBayar = $sisaTagihan;
-            $maxBayar = $sisaTagihan;
-            $pesanMin = 'Sisa tagihan yang harus dilunasi adalah Rp ' . number_format($sisaTagihan, 0, ',', '.');
-        }
-
-        $request->validate([
-            'nominal_bayar' => ['required', 'numeric', 'min:' . $minBayar, 'max:' . $maxBayar],
-        ], [
-            'nominal_bayar.required' => 'Nominal bayar wajib diisi.',
-            'nominal_bayar.min'      => $pesanMin,
-            'nominal_bayar.max'      => 'Nominal melebihi sisa tagihan.',
-        ]);
-
-        $pembayaran = Pembayaran::where('id_penyewaan', $id)
-            ->where('status_pembayaran', 'pending')
-            ->firstOrFail();
-
-        $orderId = 'PAY-' . $kodeBooking . '-' . time();
-
-        try {
-            $params = [
-                'transaction_details' => [
-                    'order_id'     => $orderId,
-                    'gross_amount' => (int) $request->nominal_bayar,
-                ],
-                'customer_details' => [
-                    'first_name' => Auth::user()->name,
-                    'email'      => Auth::user()->email,
-                ],
-                'enabled_payments' => ['credit_card', 'bca_va', 'bni_va', 'bri_va', 'gopay', 'shopeepay', 'other_va'],
-                'callbacks'        => ['finish' => route('user.pengembalian')]
-            ];
-
-            $snapToken = Snap::getSnapToken($params);
-
-            $pembayaran->update([
-                'kode_pembayaran'   => $orderId,
-                'jumlah_bayar'      => $request->nominal_bayar,
-                'jenis_pembayaran'  => ($request->nominal_bayar == $sisaTagihan) ? 'pelunasan' : 'dp',
-                'snap_token'        => $snapToken,
-                'metode_pembayaran' => 'midtrans',
-            ]);
-
-            $totalBayar = $totalTerbayar; 
-
-            return view('user.pembayaran.index', compact(
-                'penyewaan', 'pembayaran', 'snapToken', 'sisaTagihan', 
-                'totalTagihan', 'totalBayar', 'semuaFasilitas'
-            ));
-
-        } catch (\Exception $e) {
-            \Log::error('Midtrans Error: ' . $e->getMessage());
-            return back()->with('error', 'Gagal memproses pembayaran: ' . $e->getMessage());
-        }
-    }
-
-    /**
      * CALLBACK MIDTRANS (WEBHOOK)
      */
     public function callback(Request $request)
     {
         $orderId = $request->order_id;
 
+        // Logika untuk Pembayaran Sewa (DP / Pelunasan)
         if (str_contains($orderId, 'PAY-')) {
             $pembayaran = Pembayaran::where('kode_pembayaran', $orderId)->first();
             if ($pembayaran) {
-                // Jika Midtrans bilang sukses, maka status record pembayaran ini BERHASIL
                 if (in_array($request->transaction_status, ['settlement', 'capture'])) {
                     $pembayaran->update([
                         'status_pembayaran' => 'berhasil', 
                         'tanggal_bayar' => now()
                     ]);
+                } elseif (in_array($request->transaction_status, ['expire', 'cancel', 'deny'])) {
+                    $pembayaran->update([
+                        'status_pembayaran' => 'gagal'
+                    ]);
+                }
+            }
+        } // Baris ini menutup pengecekan PAY-
 
         // Logika untuk Pembayaran Denda
         if (str_contains($orderId, 'DENDA-')) {
@@ -222,7 +142,7 @@ class PembayaranController extends Controller
                     $denda->update(['status_denda' => 'belum_bayar']);
                 }
             }
-        }
+        } // Baris ini menutup pengecekan DENDA-
 
         return response()->json(['status' => 'ok']);
     }
