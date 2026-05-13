@@ -46,8 +46,7 @@ class PembayaranController extends Controller
         $penyewaan = Penyewaan::with([
             'fasilitas',
             'pembayaran' => function ($q) {
-                // Ambil semua pembayaran yang berhasil (DP & Pelunasan) untuk ditampilkan buktinya
-                $q->where('status_pembayaran', 'berhasil')->orderBy('created_at', 'desc');
+                $q->where('status_pembayaran', 'berhasil');
             }
         ])
         ->where('id_user', Auth::id())
@@ -56,10 +55,9 @@ class PembayaranController extends Controller
         $kodeBooking = $penyewaan->kode_booking;
         $semuaFasilitas = $this->getDaftarFasilitas($kodeBooking);
 
-        // 1. Hitung Total Tagihan asli dari semua item penyewaan dengan kode booking ini
+        // Hitung Total Tagihan & Yang Sudah Dibayar
         $totalTagihan = Penyewaan::where('kode_booking', $kodeBooking)->sum('total_harga');
         
-        // 2. Hitung Total yang sudah dibayar (Berhasil)
         $totalBayar = Pembayaran::whereHas('penyewaan', function ($q) use ($kodeBooking) {
                 $q->where('kode_booking', $kodeBooking);
             })
@@ -68,49 +66,50 @@ class PembayaranController extends Controller
 
         $sisaTagihan = $totalTagihan - $totalBayar;
 
-        // 3. Tentukan status lunas (Digunakan di Blade untuk menyembunyikan form bayar)
-        $isLunas = ($sisaTagihan <= 0);
-
-        // 4. Ambil atau buat data pembayaran pending untuk proses Midtrans selanjutnya
-        // Hanya cari pending jika belum lunas
-        $pembayaran = null;
-        if (!$isLunas) {
-            $pembayaran = Pembayaran::where('id_penyewaan', $id)
-                ->where('status_pembayaran', 'pending')
-                ->first();
-
-            if (!$pembayaran) {
-                $pembayaran = Pembayaran::create([
-                    'id_penyewaan'      => $id,
-                    'kode_pembayaran'   => 'TEMP-' . time(),
-                    'jumlah_bayar'      => 0,
-                    'status_pembayaran' => 'pending',
-                    'jenis_pembayaran'  => 'pelunasan',
-                ]);
-            }
+        // Cek jika sudah lunas
+        if ($sisaTagihan <= 0) {
+            return redirect()->route('user.pengembalian')
+                ->with('success', 'Pembayaran sudah lunas.');
         }
 
-        // 5. Return View dengan semua variabel yang dibutuhkan
+        // Ambil data pembayaran pending (jika ada)
+        $pembayaran = Pembayaran::where('id_penyewaan', $id)
+            ->where('status_pembayaran', 'pending')
+            ->first();
+
+        if (!$pembayaran) {
+            $pembayaran = Pembayaran::create([
+                'id_penyewaan'      => $id,
+                'kode_pembayaran'   => 'TEMP-' . time(),
+                'jumlah_bayar'      => 0,
+                'status_pembayaran' => 'pending',
+                'jenis_pembayaran'  => 'pelunasan',
+            ]);
+        }
+
         return view('user.pembayaran.index', compact(
-            'penyewaan', 
-            'pembayaran', 
-            'sisaTagihan', 
-            'isLunas', 
-            'totalTagihan', 
-            'totalBayar', 
-            'semuaFasilitas'
+            'penyewaan', 'pembayaran', 'sisaTagihan', 
+            'totalTagihan', 'totalBayar', 'semuaFasilitas'
         ));
     }
 
+    /**
+     * PROSES PEMBAYARAN (GENERATE SNAP TOKEN)
+     */
     public function proses(Request $request, $id)
     {
+        // Bersihkan format titik pada input nominal
         $cleanNominal = str_replace('.', '', $request->nominal_bayar);
         $request->merge(['nominal_bayar' => $cleanNominal]);
 
         $penyewaan = Penyewaan::findOrFail($id);
         $kodeBooking = $penyewaan->kode_booking;
+        
+        // AMBIL KEMBALI FASILITAS UNTUK VIEW (Menghindari error Undefined Variable)
+        $semuaFasilitas = $this->getDaftarFasilitas($kodeBooking);
 
         $totalTagihan = Penyewaan::where('kode_booking', $kodeBooking)->sum('total_harga');
+
         $totalTerbayar = Pembayaran::whereHas('penyewaan', function ($q) use ($kodeBooking) {
                 $q->where('kode_booking', $kodeBooking);
             })
@@ -119,8 +118,32 @@ class PembayaranController extends Controller
 
         $sisaTagihan = $totalTagihan - $totalTerbayar;
 
+        // Validasi Nominal (DP 50% atau Pelunasan Sisa)
+        if ($totalTerbayar <= 0) {
+            $minBayar = round($totalTagihan * 0.5);
+            $maxBayar = $totalTagihan;
+            $pesanMin = 'Minimal pembayaran DP adalah Rp ' . number_format($minBayar, 0, ',', '.');
+        } else {
+            $minBayar = $sisaTagihan;
+            $maxBayar = $sisaTagihan;
+            $pesanMin = 'Sisa tagihan yang harus dilunasi adalah Rp ' . number_format($sisaTagihan, 0, ',', '.');
+        }
+
+        $request->validate([
+            'nominal_bayar' => ['required', 'numeric', 'min:' . $minBayar, 'max:' . $maxBayar],
+        ], [
+            'nominal_bayar.required' => 'Nominal bayar wajib diisi.',
+            'nominal_bayar.min'      => $pesanMin,
+            'nominal_bayar.max'      => 'Nominal melebihi sisa tagihan.',
+        ]);
+
+        $pembayaran = Pembayaran::where('id_penyewaan', $id)
+            ->where('status_pembayaran', 'pending')
+            ->firstOrFail();
+
+        $orderId = 'PAY-' . $kodeBooking . '-' . time();
+
         try {
-            $orderId = 'PAY-' . $kodeBooking . '-' . time();
             $params = [
                 'transaction_details' => [
                     'order_id'     => $orderId,
@@ -130,13 +153,11 @@ class PembayaranController extends Controller
                     'first_name' => Auth::user()->name,
                     'email'      => Auth::user()->email,
                 ],
+                'enabled_payments' => ['credit_card', 'bca_va', 'bni_va', 'bri_va', 'gopay', 'shopeepay', 'other_va'],
+                'callbacks'        => ['finish' => route('user.pengembalian')]
             ];
 
             $snapToken = Snap::getSnapToken($params);
-
-            $pembayaran = Pembayaran::where('id_penyewaan', $id)
-                ->where('status_pembayaran', 'pending')
-                ->firstOrFail();
 
             $pembayaran->update([
                 'kode_pembayaran'   => $orderId,
@@ -146,13 +167,16 @@ class PembayaranController extends Controller
                 'metode_pembayaran' => 'midtrans',
             ]);
 
-            return view('user.pembayaran.index', array_merge(
-                compact('penyewaan', 'pembayaran', 'snapToken', 'sisaTagihan', 'totalTagihan'),
-                ['totalBayar' => $totalTerbayar, 'semuaFasilitas' => $this->getDaftarFasilitas($kodeBooking)]
+            $totalBayar = $totalTerbayar; 
+
+            return view('user.pembayaran.index', compact(
+                'penyewaan', 'pembayaran', 'snapToken', 'sisaTagihan', 
+                'totalTagihan', 'totalBayar', 'semuaFasilitas'
             ));
 
         } catch (\Exception $e) {
-            return back()->with('error', 'Gagal: ' . $e->getMessage());
+            \Log::error('Midtrans Error: ' . $e->getMessage());
+            return back()->with('error', 'Gagal memproses pembayaran: ' . $e->getMessage());
         }
     }
 
@@ -163,22 +187,17 @@ class PembayaranController extends Controller
     {
         $orderId = $request->order_id;
 
-        // Logika untuk Pembayaran Sewa (DP / Pelunasan)
+        // Logika untuk Pembayaran Sewa
         if (str_contains($orderId, 'PAY-')) {
             $pembayaran = Pembayaran::where('kode_pembayaran', $orderId)->first();
             if ($pembayaran) {
                 if (in_array($request->transaction_status, ['settlement', 'capture'])) {
-                    $pembayaran->update([
-                        'status_pembayaran' => 'berhasil', 
-                        'tanggal_bayar' => now()
-                    ]);
+                    $pembayaran->update(['status_pembayaran' => 'berhasil', 'tanggal_bayar' => now()]);
                 } elseif (in_array($request->transaction_status, ['expire', 'cancel', 'deny'])) {
-                    $pembayaran->update([
-                        'status_pembayaran' => 'gagal'
-                    ]);
+                    $pembayaran->update(['status_pembayaran' => 'gagal']);
                 }
             }
-        } // Baris ini menutup pengecekan PAY-
+        }
 
         // Logika untuk Pembayaran Denda
         if (str_contains($orderId, 'DENDA-')) {
@@ -196,7 +215,7 @@ class PembayaranController extends Controller
                     $denda->update(['status_denda' => 'belum_bayar']);
                 }
             }
-        } // Baris ini menutup pengecekan DENDA-
+        }
 
         return response()->json(['status' => 'ok']);
     }
