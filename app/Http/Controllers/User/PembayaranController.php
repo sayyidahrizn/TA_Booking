@@ -102,6 +102,60 @@ class PembayaranController extends Controller
         ));
     }
 
+    public function proses(Request $request, $id)
+    {
+        $cleanNominal = str_replace('.', '', $request->nominal_bayar);
+        $request->merge(['nominal_bayar' => $cleanNominal]);
+
+        $penyewaan = Penyewaan::findOrFail($id);
+        $kodeBooking = $penyewaan->kode_booking;
+
+        $totalTagihan = Penyewaan::where('kode_booking', $kodeBooking)->sum('total_harga');
+        $totalTerbayar = Pembayaran::whereHas('penyewaan', function ($q) use ($kodeBooking) {
+                $q->where('kode_booking', $kodeBooking);
+            })
+            ->where('status_pembayaran', 'berhasil')
+            ->sum('jumlah_bayar');
+
+        $sisaTagihan = $totalTagihan - $totalTerbayar;
+
+        try {
+            $orderId = 'PAY-' . $kodeBooking . '-' . time();
+            $params = [
+                'transaction_details' => [
+                    'order_id'     => $orderId,
+                    'gross_amount' => (int) $request->nominal_bayar,
+                ],
+                'customer_details' => [
+                    'first_name' => Auth::user()->name,
+                    'email'      => Auth::user()->email,
+                ],
+            ];
+
+            $snapToken = Snap::getSnapToken($params);
+
+            $pembayaran = Pembayaran::where('id_penyewaan', $id)
+                ->where('status_pembayaran', 'pending')
+                ->firstOrFail();
+
+            $pembayaran->update([
+                'kode_pembayaran'   => $orderId,
+                'jumlah_bayar'      => $request->nominal_bayar,
+                'jenis_pembayaran'  => ($request->nominal_bayar == $sisaTagihan) ? 'pelunasan' : 'dp',
+                'snap_token'        => $snapToken,
+                'metode_pembayaran' => 'midtrans',
+            ]);
+
+            return view('user.pembayaran.index', array_merge(
+                compact('penyewaan', 'pembayaran', 'snapToken', 'sisaTagihan', 'totalTagihan'),
+                ['totalBayar' => $totalTerbayar, 'semuaFasilitas' => $this->getDaftarFasilitas($kodeBooking)]
+            ));
+
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal: ' . $e->getMessage());
+        }
+    }
+
     /**
      * CALLBACK MIDTRANS (WEBHOOK)
      */
