@@ -351,40 +351,44 @@
 </script>
 
 @if(isset($snapToken))
+    {{-- 1. Load Snap.js --}}
+    <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="{{ config('services.midtrans.client_key') }}"></script>
 
-<script src="https://app.sandbox.midtrans.com/snap/snap.js"
-        data-client-key="{{ config('services.midtrans.client_key') }}">
-</script>
+    <script type="text/javascript">
+        // Fungsi tunggal untuk memicu popup Midtrans
+        function triggerSnap() {
+            window.snap.pay('{{ $snapToken }}', {
+                onSuccess: function(result) {
+                    window.location.href = "{{ route('user.penyewaan.index') }}";
+                },
+                onPending: function(result) {
+                    window.location.href = "{{ route('user.penyewaan.index') }}";
+                },
+                onError: function(result) {
+                    alert("Terjadi kesalahan, silakan coba lagi.");
+                    console.error(result);
+                },
+                onClose: function() {
+                    alert('Anda belum menyelesaikan pembayaran.');
+                }
+            });
+        }
 
-<script>
+        // Jalankan otomatis saat halaman selesai dimuat (Setelah redirect dari controller)
+        window.onload = function() {
+            triggerSnap();
+        };
 
-    window.onload = function () {
-        triggerSnap();
-    };
-
-    document.getElementById('pay-button').onclick = function () {
-        triggerSnap();
-    };
-
-    function triggerSnap() {
-
-        snap.pay('{{ $snapToken }}', {
-
-            onSuccess: function(result) {
-                window.location.href = "{{ route('user.penyewaan.index') }}";
-            },
-
-            onPending: function(result) {
-                window.location.href = "{{ route('user.penyewaan.index') }}";
-            },
-
-            onError: function(result) {
-                alert('Terjadi kesalahan, silakan coba lagi.');
+        // Tambahkan event listener ke tombol "Bayar Sekarang" jika user menutup popup dan ingin buka lagi
+        document.addEventListener('DOMContentLoaded', function() {
+            const payBtn = document.getElementById('pay-button');
+            if (payBtn) {
+                payBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    triggerSnap();
+                });
             }
         });
-    }
-</script>
-
+    </script>
 @endif
-
 @endsection
