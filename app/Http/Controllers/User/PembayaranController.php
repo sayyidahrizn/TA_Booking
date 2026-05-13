@@ -46,7 +46,8 @@ class PembayaranController extends Controller
         $penyewaan = Penyewaan::with([
             'fasilitas',
             'pembayaran' => function ($q) {
-                $q->where('status_pembayaran', 'berhasil');
+                // Ambil semua pembayaran yang berhasil (DP & Pelunasan) untuk ditampilkan buktinya
+                $q->where('status_pembayaran', 'berhasil')->orderBy('created_at', 'desc');
             }
         ])
         ->where('id_user', Auth::id())
@@ -55,9 +56,10 @@ class PembayaranController extends Controller
         $kodeBooking = $penyewaan->kode_booking;
         $semuaFasilitas = $this->getDaftarFasilitas($kodeBooking);
 
-        // Hitung Total Tagihan & Yang Sudah Dibayar
+        // 1. Hitung Total Tagihan asli dari semua item penyewaan dengan kode booking ini
         $totalTagihan = Penyewaan::where('kode_booking', $kodeBooking)->sum('total_harga');
         
+        // 2. Hitung Total yang sudah dibayar (Berhasil)
         $totalBayar = Pembayaran::whereHas('penyewaan', function ($q) use ($kodeBooking) {
                 $q->where('kode_booking', $kodeBooking);
             })
@@ -66,30 +68,37 @@ class PembayaranController extends Controller
 
         $sisaTagihan = $totalTagihan - $totalBayar;
 
-        // Cek jika sudah lunas
-        if ($sisaTagihan <= 0) {
-            return redirect()->route('user.pengembalian')
-                ->with('success', 'Pembayaran sudah lunas.');
+        // 3. Tentukan status lunas (Digunakan di Blade untuk menyembunyikan form bayar)
+        $isLunas = ($sisaTagihan <= 0);
+
+        // 4. Ambil atau buat data pembayaran pending untuk proses Midtrans selanjutnya
+        // Hanya cari pending jika belum lunas
+        $pembayaran = null;
+        if (!$isLunas) {
+            $pembayaran = Pembayaran::where('id_penyewaan', $id)
+                ->where('status_pembayaran', 'pending')
+                ->first();
+
+            if (!$pembayaran) {
+                $pembayaran = Pembayaran::create([
+                    'id_penyewaan'      => $id,
+                    'kode_pembayaran'   => 'TEMP-' . time(),
+                    'jumlah_bayar'      => 0,
+                    'status_pembayaran' => 'pending',
+                    'jenis_pembayaran'  => 'pelunasan',
+                ]);
+            }
         }
 
-        // Ambil data pembayaran pending (jika ada)
-        $pembayaran = Pembayaran::where('id_penyewaan', $id)
-            ->where('status_pembayaran', 'pending')
-            ->first();
-
-        if (!$pembayaran) {
-            $pembayaran = Pembayaran::create([
-                'id_penyewaan'      => $id,
-                'kode_pembayaran'   => 'TEMP-' . time(),
-                'jumlah_bayar'      => 0,
-                'status_pembayaran' => 'pending',
-                'jenis_pembayaran'  => 'pelunasan',
-            ]);
-        }
-
+        // 5. Return View dengan semua variabel yang dibutuhkan
         return view('user.pembayaran.index', compact(
-            'penyewaan', 'pembayaran', 'sisaTagihan', 
-            'totalTagihan', 'totalBayar', 'semuaFasilitas'
+            'penyewaan', 
+            'pembayaran', 
+            'sisaTagihan', 
+            'isLunas', 
+            'totalTagihan', 
+            'totalBayar', 
+            'semuaFasilitas'
         ));
     }
 
@@ -187,17 +196,15 @@ class PembayaranController extends Controller
     {
         $orderId = $request->order_id;
 
-        // Logika untuk Pembayaran Sewa
         if (str_contains($orderId, 'PAY-')) {
             $pembayaran = Pembayaran::where('kode_pembayaran', $orderId)->first();
             if ($pembayaran) {
+                // Jika Midtrans bilang sukses, maka status record pembayaran ini BERHASIL
                 if (in_array($request->transaction_status, ['settlement', 'capture'])) {
-                    $pembayaran->update(['status_pembayaran' => 'berhasil', 'tanggal_bayar' => now()]);
-                } elseif (in_array($request->transaction_status, ['expire', 'cancel', 'deny'])) {
-                    $pembayaran->update(['status_pembayaran' => 'gagal']);
-                }
-            }
-        }
+                    $pembayaran->update([
+                        'status_pembayaran' => 'berhasil', 
+                        'tanggal_bayar' => now()
+                    ]);
 
         // Logika untuk Pembayaran Denda
         if (str_contains($orderId, 'DENDA-')) {
