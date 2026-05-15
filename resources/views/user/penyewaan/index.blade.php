@@ -5,9 +5,10 @@
 @endsection
 
 @section('content')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <div class="container" style="max-width: 1200px; margin: 40px auto; background: white; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); overflow: hidden; border: 1px solid #f1f5f9;">
     
-    <!-- Header Tabel -->
     <div style="padding: 25px 30px; display: flex; justify-content: space-between; align-items: center; background: #ffffff; border-bottom: 1px solid #f1f5f9;">
         <div>
             <h2 style="color: #0f172a; margin: 0; font-weight: 700; font-size: 1.25rem;">Transaksi Berjalan</h2>
@@ -38,26 +39,19 @@
                     $p = $group->first();
                     $statusSewa = strtolower($p->status_sewa);
                     
-                    // ========================================================================
-                    // PERBAIKAN LOGIKA: HITUNG LANGSUNG DARI DATABASE AGAR AKURAT
-                    // ========================================================================
-                    
-                    // 1. Ambil Total Tagihan asli dari semua item penyewaan dengan kode booking ini
+                    // 1. Hitung Total Tagihan
                     $totalHargaGrup = \App\Models\Penyewaan::where('kode_booking', $kode_booking)->sum('total_harga');
 
-                    // 2. Ambil Total Pembayaran yang statusnya 'berhasil' untuk seluruh item di kode booking ini
+                    // 2. Hitung Total Pembayaran Berhasil
                     $totalMasuk = \App\Models\Pembayaran::whereHas('penyewaan', function($q) use ($kode_booking) {
                                         $q->where('kode_booking', $kode_booking);
                                     })
                                     ->whereIn('status_pembayaran', ['berhasil', 'diverifikasi'])
                                     ->sum('jumlah_bayar');
                     
-                    // 3. Tentukan status lunas dengan toleransi selisih kecil (misal pembulatan)
                     $sisaTagihan = $totalHargaGrup - $totalMasuk;
                     $lunas = $sisaTagihan <= 0; 
                     $sudahAdaBayar = $totalMasuk > 0;
-
-                    // ID penyewaan pertama untuk link target pembayaran
                     $idUntukBayar = $p->id_penyewaan; 
                 @endphp
 
@@ -90,10 +84,19 @@
                             $bg = '#f1f5f9'; $color = '#475569';
                             if($statusSewa == 'disetujui') { $bg = '#dcfce7'; $color = '#166534'; }
                             elseif($statusSewa == 'proses') { $bg = '#fef9c3'; $color = '#854d0e'; }
-                            elseif($statusSewa == 'batal') { $bg = '#fee2e2'; $color = '#991b1b'; }
+                            elseif($statusSewa == 'batal' || $statusSewa == 'dibatalkan_user') { 
+                                $bg = '#fee2e2'; 
+                                $color = '#991b1b'; 
+                            }
                         @endphp
                         <span style="background: {{ $bg }}; color: {{ $color }}; padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
-                            {{ $statusSewa == 'proses' ? 'menunggu' : $statusSewa }}
+                            @if($statusSewa == 'proses')
+                                menunggu
+                            @elseif($statusSewa == 'dibatalkan_user')
+                                dibatalkan penyewa
+                            @else
+                                {{ $statusSewa }}
+                            @endif
                         </span>
                     </td>
 
@@ -119,17 +122,35 @@
                     </td>
 
                     <td style="padding: 20px 24px; text-align: center;">
-                        @if($sudahAdaBayar)
-                            <a href="{{ route('user.penyewaan.bukti', $kode_booking) }}" target="_blank" 
+                        @if($statusSewa == 'proses')
+                            <form action="{{ route('user.penyewaan.batal', $kode_booking) }}"
+                                  method="POST"
+                                  id="form-batal-{{ $kode_booking }}">
+                                @csrf
+                                <button type="button"
+                                        onclick="confirmCancel('{{ $kode_booking }}')"
+                                        style="background:#ef4444; color:white; border:none; padding:10px 16px; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px;">
+                                    Batalkan
+                                </button>
+                            </form>
+
+                        @elseif($sudahAdaBayar)
+                            <a href="{{ route('user.penyewaan.bukti', $kode_booking) }}" target="_blank"
                                style="display: inline-flex; align-items: center; gap: 6px; color: #4f46e5; text-decoration: none; font-weight: 700; border: 2px solid #e0e7ff; padding: 8px 14px; border-radius: 10px; font-size: 13px; transition: all 0.2s;"
-                               onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='transparent'">
+                               onmouseover="this.style.background='#e0e7ff'"
+                               onmouseout="this.style.background='transparent'">
                                 <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                     <path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
                                 </svg>
                                 Cetak Bukti
                             </a>
+
+                        @elseif($statusSewa == 'dibatalkan_user')
+                            <span style="background:#fee2e2; color:#991b1b; padding:8px 14px; border-radius:8px; font-size:12px; font-weight:700;">
+                                Dibatalkan
+                            </span>
                         @else
-                            <span style="color: #cbd5e1; font-size: 12px; font-style: italic;">Belum ada pembayaran</span>
+                            <span style="color: #94a3b8; font-size: 12px; font-style: italic;">Tidak ada aksi</span>
                         @endif
                     </td>
                 </tr>
@@ -147,4 +168,58 @@
         </table>
     </div>
 </div>
+
+<script>
+    function confirmCancel(kodeBooking) {
+        Swal.fire({
+            title: 'Batalkan Penyewaan?',
+            text: "Anda akan membatalkan pesanan #" + kodeBooking + ". Tindakan ini tidak dapat dibatalkan.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444', // Merah
+            cancelButtonColor: '#64748b', // Abu-abu
+            confirmButtonText: 'Ya, Batalkan!',
+            cancelButtonText: 'Kembali',
+            reverseButtons: true,
+            customClass: {
+                popup: 'my-swal-popup'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('form-batal-' + kodeBooking).submit();
+            }
+        })
+    }
+
+    // Tampilkan notifikasi sukses jika ada session success dari Laravel
+    @if(session('success'))
+        Swal.fire({
+            title: 'Berhasil!',
+            text: "{{ session('success') }}",
+            icon: 'success',
+            timer: 3000,
+            showConfirmButton: false
+        });
+    @endif
+</script>
+
+<style>
+    .swal2-popup {
+        border-radius: 16px !important;
+        padding: 2rem !important;
+        font-family: inherit !important;
+    }
+    .swal2-title {
+        font-weight: 800 !important;
+        color: #1e293b !important;
+    }
+    .swal2-html-container {
+        color: #64748b !important;
+    }
+    .swal2-confirm, .swal2-cancel {
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        padding: 12px 24px !important;
+    }
+</style>
 @endsection

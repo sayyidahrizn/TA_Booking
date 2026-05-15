@@ -81,6 +81,10 @@ Route::middleware(['auth'])->group(function () {
 
     // Cetak Bukti
     Route::get('/penyewaan/bukti/{kode_booking}', [UserPenyewaan::class, 'cetakBukti'])->name('user.penyewaan.bukti');
+
+    //pembatalan penyewaan
+    Route::post('/penyewaan/batal/{kode}', [UserPenyewaan::class, 'batalGroup'])
+    ->name('user.penyewaan.batal');
 });
 
 /*

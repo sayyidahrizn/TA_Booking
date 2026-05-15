@@ -306,17 +306,24 @@
                                     $statusText = '';
 
                                     if(request('jenis') == 'penyewaan') {
-                                        $statusText = $item->status_sewa;
-                                        $statusClass = $item->status_sewa == 'disetujui' ? 'status-success' : ($item->status_sewa == 'ditolak' ? 'status-danger' : 'status-pending');
+                                        $statusText = $item->status_sewa == 'dibatalkan_user' ? 'Dibatalkan Penyewa' : ucfirst($item->status_sewa);
+                                        $statusClass = $item->status_sewa == 'disetujui' ? 'status-success' : ($item->status_sewa == 'ditolak' || $item->status_sewa == 'dibatalkan_user' ? 'status-danger' : 'status-pending');
                                     } elseif(request('jenis') == 'pembayaran') {
-                                        $statusText = $item->status_pembayaran;
+                                        $statusText = ucfirst($item->status_pembayaran);
                                         $statusClass = $item->status_pembayaran == 'lunas' ? 'status-success' : ($item->status_pembayaran == 'batal' ? 'status-danger' : 'status-pending');
                                     } elseif(request('jenis') == 'pengembalian') {
-                                        $statusText = $item->status_pengembalian;
+                                        $statusText = ucfirst($item->status_pengembalian);
                                         $statusClass = $item->status_pengembalian == 'selesai' ? 'status-info' : 'status-pending';
                                     } else {
-                                        $statusText = 'Sewa: ' . ucfirst($item->status_sewa);
-                                        $statusClass = 'status-info';
+                                        // INI BAGIAN YANG DIPAKAI SAAT "SEMUA DATA LAPORAN"
+                                        // Kita cek manual status_sewa-nya di sini
+                                        if($item->status_sewa == 'dibatalkan_user') {
+                                            $statusText = 'Sewa: Dibatalkan Penyewa';
+                                            $statusClass = 'status-danger';
+                                        } else {
+                                            $statusText = 'Sewa: ' . ucfirst($item->status_sewa);
+                                            $statusClass = $item->status_sewa == 'disetujui' ? 'status-success' : 'status-info';
+                                        }
                                     }
                                 @endphp
                                 <span class="badge {{ $statusClass }}">{{ $statusText }}</span>

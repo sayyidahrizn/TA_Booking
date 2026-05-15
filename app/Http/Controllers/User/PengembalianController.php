@@ -22,19 +22,14 @@ class PengembalianController extends Controller
         // tapi BELUM ada di tabel pengembalian
         $penyewaan = Penyewaan::with(['fasilitas', 'pembayaran'])
             ->where('id_user', $userId)
-            ->whereIn('status_sewa', [
-                'disetujui',
-                'menunggu_pembayaran_denda'
-            ])
+            ->where('status_sewa', 'disetujui')
             ->whereDoesntHave('pengembalian')
             ->get()
-
             ->map(function($item) {
 
                 // =========================
                 // HITUNG TOTAL PEMBAYARAN
                 // =========================
-
                 $totalBayar = $item->pembayaran
                     ->where('status_pembayaran', 'berhasil')
                     ->sum('jumlah_bayar');
@@ -42,17 +37,14 @@ class PengembalianController extends Controller
                 // =========================
                 // HITUNG SISA PEMBAYARAN
                 // =========================
-
                 $sisaRaw = $item->total_harga - $totalBayar;
 
                 // Jika selisih kecil dianggap lunas
-                $item->sisa_pembayaran =
-                    ($sisaRaw < 1) ? 0 : $sisaRaw;
+                $item->sisa_pembayaran = ($sisaRaw < 1) ? 0 : $sisaRaw;
 
                 // =========================
                 // GABUNGKAN TANGGAL & JAM
                 // =========================
-
                 $waktuSelesai = Carbon::parse(
                     $item->tgl_selesai . ' ' . $item->jam_selesai
                 );
@@ -60,44 +52,31 @@ class PengembalianController extends Controller
                 // =========================
                 // STATUS BOLEH KEMBALI
                 // =========================
-
                 // Pengembalian baru bisa setelah waktu selesai
-                $item->sudah_boleh_kembali =
-                    Carbon::now()->greaterThanOrEqualTo($waktuSelesai);
+                $item->sudah_boleh_kembali = Carbon::now()->greaterThanOrEqualTo($waktuSelesai);
 
                 // =========================
                 // BATAS TANPA DENDA
                 // =========================
-
                 // Toleransi 12 jam
-                $item->batas_tanpa_denda =
-                    $waktuSelesai->copy()->addHours(12);
+                $item->batas_tanpa_denda = $waktuSelesai->copy()->addHours(12);
 
                 // =========================
                 // STATUS TERLAMBAT
                 // =========================
-
-                $item->terlambat =
-                    Carbon::now()->greaterThan(
-                        $item->batas_tanpa_denda
-                    );
+                $item->terlambat = Carbon::now()->greaterThan($item->batas_tanpa_denda);
 
                 return $item;
             })
-
             ->groupBy(function($item) {
-
-                return Carbon::parse($item->tgl_mulai)
-                    ->format('Y-m-d');
+                return Carbon::parse($item->tgl_mulai)->format('Y-m-d');
             });
 
         // =========================
         // AMBIL DENDA BELUM DIBAYAR
         // =========================
-
         $denda_tunggakan = Denda::with('penyewaan.fasilitas')
             ->whereHas('penyewaan', function($q) use ($userId) {
-
                 $q->where('id_user', $userId);
             })
             ->where('status_denda', 'belum_bayar')
@@ -116,374 +95,145 @@ class PengembalianController extends Controller
             'bukti_pengembalian' => 'required|array',
             'bukti_pengembalian.*' => 'image|mimes:jpeg,png,jpg|max:5120',
         ], [
-            'id_penyewaan.required' =>
-                'Silakan pilih fasilitas yang akan dikembalikan.',
-
-            'bukti_pengembalian.*.image' =>
-                'File bukti harus berupa gambar.',
-
-            'bukti_pengembalian.*.max' =>
-                'Ukuran gambar maksimal adalah 5MB.',
+            'id_penyewaan.required' => 'Silakan pilih fasilitas yang akan dikembalikan.',
+            'bukti_pengembalian.*.image' => 'File bukti harus berupa gambar.',
+            'bukti_pengembalian.*.max' => 'Ukuran gambar maksimal adalah 5MB.',
         ]);
 
         DB::beginTransaction();
 
         try {
-
             $count = 0;
 
             foreach ($request->id_penyewaan as $id) {
-
-                // =========================
                 // VALIDASI FOTO
-                // =========================
-
                 if (!$request->hasFile("bukti_pengembalian.$id")) {
-
-                    throw new Exception(
-                        "Bukti foto untuk salah satu fasilitas belum diunggah."
-                    );
+                    throw new Exception("Bukti foto untuk salah satu fasilitas belum diunggah.");
                 }
 
-                // =========================
                 // AMBIL DATA PENYEWAAN
-                // =========================
-
-                $penyewaan = Penyewaan::with([
-                        'pembayaran',
-                        'fasilitas'
-                    ])
+                $penyewaan = Penyewaan::with(['pembayaran', 'fasilitas'])
                     ->where('id_penyewaan', $id)
                     ->where('id_user', Auth::id())
                     ->lockForUpdate()
                     ->first();
 
                 if (!$penyewaan) {
-
-                    throw new Exception(
-                        "Data penyewaan tidak ditemukan."
-                    );
+                    throw new Exception("Data penyewaan tidak ditemukan.");
                 }
 
-                // =========================
                 // CEK WAKTU SELESAI
-                // =========================
+                $waktuSelesai = Carbon::parse($penyewaan->tgl_selesai . ' ' . $penyewaan->jam_selesai);
 
-                $waktuSelesai = Carbon::parse(
-                    $penyewaan->tgl_selesai . ' ' . $penyewaan->jam_selesai
-                );
-
-                // Belum waktunya selesai
                 if (Carbon::now()->lt($waktuSelesai)) {
-
-                    throw new Exception(
-                        "Fasilitas {$penyewaan->fasilitas->nama_fasilitas} belum bisa dikembalikan karena waktu penyewaan belum selesai."
-                    );
+                    throw new Exception("Fasilitas {$penyewaan->fasilitas->nama_fasilitas} belum bisa dikembalikan karena waktu penyewaan belum selesai.");
                 }
 
-                // =========================
                 // CEK PEMBAYARAN
-                // =========================
-
                 $totalBayar = $penyewaan->pembayaran
                     ->where('status_pembayaran', 'berhasil')
                     ->sum('jumlah_bayar');
 
                 $sisa = $penyewaan->total_harga - $totalBayar;
 
-                // Jika belum lunas
                 if ($sisa > 0) {
-
-                    throw new Exception(
-                        "Fasilitas {$penyewaan->fasilitas->nama_fasilitas} belum lunas. "
-                        . "Sisa pembayaran Rp "
-                        . number_format($sisa, 0, ',', '.')
-                    );
+                    throw new Exception("Fasilitas {$penyewaan->fasilitas->nama_fasilitas} belum lunas. Sisa pembayaran Rp " . number_format($sisa, 0, ',', '.'));
                 }
 
-                // =========================
-                // CEK DUPLIKAT PENGEMBALIAN
-                // =========================
-
-                $cekPengembalian = Pengembalian::where(
-                    'id_penyewaan',
-                    $penyewaan->id_penyewaan
-                )->first();
-
+                // CEK DUPLIKAT
+                $cekPengembalian = Pengembalian::where('id_penyewaan', $penyewaan->id_penyewaan)->first();
                 if ($cekPengembalian) {
-
-                    throw new Exception(
-                        "Fasilitas {$penyewaan->fasilitas->nama_fasilitas} sudah diajukan pengembalian."
-                    );
+                    throw new Exception("Fasilitas {$penyewaan->fasilitas->nama_fasilitas} sudah diajukan pengembalian.");
                 }
 
-                // =========================
-                // HITUNG DENDA
-                // =========================
-
-                // Toleransi 12 jam
-                $batasTanpaDenda =
-                    $waktuSelesai->copy()->addHours(12);
-
-                // Default denda
-                $totalDenda = 0;
-
-                // Jika terlambat lebih dari 12 jam
-                if (Carbon::now()->gt($batasTanpaDenda)) {
-
-                    // Hitung keterlambatan per jam
-                    $jamTerlambat = ceil(
-                        $batasTanpaDenda
-                            ->diffInMinutes(Carbon::now()) / 60
-                    );
-
-                    // Tarif denda per jam
-                    $dendaPerJam = 10000;
-
-                    // Total denda
-                    $totalDenda =
-                        $jamTerlambat * $dendaPerJam;
-
-                    // Cek apakah sudah ada denda
-                    $cekDenda = Denda::where(
-                        'id_penyewaan',
-                        $penyewaan->id_penyewaan
-                    )->first();
-
-                    // Jika belum ada denda
-                    if (!$cekDenda) {
-
-                        Denda::create([
-
-                            'id_penyewaan' =>
-                                $penyewaan->id_penyewaan,
-
-                            'biaya_keterlambatan' =>
-                                $totalDenda,
-
-                            'biaya_kerusakan' => 0,
-
-                            'total_denda' =>
-                                $totalDenda,
-
-                            'status_denda' =>
-                                'belum_bayar',
-                        ]);
-                    }
-
-                    // Update status penyewaan
-                    $penyewaan->update([
-                        'status_sewa' =>
-                            'menunggu_pembayaran_denda'
-                    ]);
-                }
-
-                // =========================
                 // UPLOAD FOTO
-                // =========================
+                $file = $request->file("bukti_pengembalian.$id")->store('pengembalian', 'public');
 
-                $file = $request
-                    ->file("bukti_pengembalian.$id")
-                    ->store('pengembalian', 'public');
-
-                // =========================
                 // SIMPAN PENGEMBALIAN
-                // =========================
-
                 Pengembalian::create([
+                    'id_penyewaan' => $penyewaan->id_penyewaan,
+                    'tanggal_pengembalian' => now(),
+                    'bukti_pengembalian' => $file,
+                    'status_validasi' => 'pending',
+                ]);
 
-                    'id_penyewaan' =>
-                        $penyewaan->id_penyewaan,
-
-                    'tanggal_pengembalian' =>
-                        now(),
-
-                    'bukti_pengembalian' =>
-                        $file,
-
-                    'status_validasi' =>
-                        'pending',
+                $penyewaan->update([
+                    'status_sewa' => 'menunggu_validasi_pengembalian'
                 ]);
 
                 $count++;
             }
 
             DB::commit();
-
-            return redirect()
-                ->route('user.pengembalian')
-                ->with(
-                    'success',
-                    "$count fasilitas berhasil diajukan pengembalian."
-                );
+            return redirect()->route('user.pengembalian')->with('success', "$count fasilitas berhasil diajukan pengembalian.");
 
         } catch (Exception $e) {
-
             DB::rollBack();
-
-            return back()
-                ->with('error', $e->getMessage())
-                ->withInput();
+            return back()->with('error', $e->getMessage())->withInput();
         }
     }
 
     public function bayarDenda($id)
     {
         // =========================================
-        // AMBIL DATA DENDA
+        // AMBIL DATA DENDA (Lengkap dengan Pengembalian untuk hitung hari)
         // =========================================
-
         $denda = Denda::with([
             'penyewaan.fasilitas',
-            'penyewaan.user'
+            'penyewaan.user',
+            'penyewaan.pengembalian' 
         ])->findOrFail($id);
 
         // =========================================
         // KONFIGURASI MIDTRANS
         // =========================================
-
-        \Midtrans\Config::$serverKey =
-            config('services.midtrans.server_key');
-
-        \Midtrans\Config::$isProduction =
-            config('services.midtrans.is_production', false);
-
+        \Midtrans\Config::$serverKey = config('services.midtrans.server_key');
+        \Midtrans\Config::$isProduction = config('services.midtrans.is_production', false);
         \Midtrans\Config::$isSanitized = true;
-
         \Midtrans\Config::$is3ds = true;
 
-        // =========================================
-        // CEK STATUS DENDA
-        // =========================================
-
         if ($denda->status_denda == 'lunas') {
-
-            return redirect()
-                ->route('user.pengembalian')
-                ->with(
-                    'success',
-                    'Denda sudah dibayar.'
-                );
+            return redirect()->route('user.pengembalian')->with('success', 'Denda sudah dibayar.');
         }
 
         // =========================================
-        // JIKA SUDAH ADA SNAP TOKEN
+        // JIKA BELUM ADA SNAP TOKEN, GENERATE BARU
         // =========================================
-
-        if ($denda->snap_token) {
-
-            $snapToken = $denda->snap_token;
-
-        } else {
-
-            // =========================================
-            // ORDER ID
-            // =========================================
-
-            $orderId =
-                'DENDA-' .
-                $denda->id_denda .
-                '-' .
-                time();
-
-            // =========================================
-            // PARAMETER MIDTRANS
-            // =========================================
+        if (!$denda->snap_token) {
+            $orderId = 'DENDA-' . $denda->id_denda . '-' . time();
 
             $params = [
-
                 'transaction_details' => [
-
-                    'order_id' =>
-                        $orderId,
-
-                    'gross_amount' =>
-                        (int) $denda->total_denda,
+                    'order_id' => $orderId,
+                    'gross_amount' => (int) $denda->total_denda,
                 ],
-
                 'customer_details' => [
-
-                    'first_name' =>
-                        Auth::user()->name,
-
-                    'email' =>
-                        Auth::user()->email,
+                    'first_name' => Auth::user()->name,
+                    'email' => Auth::user()->email,
                 ],
-
                 'item_details' => [
-
                     [
-
-                        'id' =>
-                            'DND-' .
-                            $denda->id_denda,
-
-                        'price' =>
-                            (int) $denda->total_denda,
-
+                        'id' => 'DND-' . $denda->id_denda,
+                        'price' => (int) $denda->total_denda,
                         'quantity' => 1,
-
-                        'name' =>
-                            'Denda ' .
-                            $denda->penyewaan
-                            ->fasilitas
-                            ->nama_fasilitas,
+                        'name' => 'Denda ' . $denda->penyewaan->fasilitas->nama_fasilitas,
                     ]
                 ],
-
-                // =========================================
-                // CALLBACK FINISH
-                // =========================================
-
                 'callbacks' => [
-
-                    'finish' =>
-                        route('user.pengembalian')
+                    'finish' => route('user.pengembalian')
                 ]
             ];
 
             try {
-
-                // =========================================
-                // GENERATE SNAP TOKEN
-                // =========================================
-
-                $snapToken =
-                    \Midtrans\Snap::getSnapToken($params);
-
-                // =========================================
-                // SIMPAN TOKEN
-                // =========================================
-
-                $denda->update([
-
-                    'snap_token' =>
-                        $snapToken
-                ]);
-
+                $snapToken = \Midtrans\Snap::getSnapToken($params);
+                $denda->update(['snap_token' => $snapToken]);
             } catch (\Exception $e) {
-
-                return back()->with(
-
-                    'error',
-
-                    'Gagal memproses pembayaran: '
-
-                    . $e->getMessage()
-                );
+                return back()->with('error', 'Gagal memproses pembayaran: ' . $e->getMessage());
             }
+        } else {
+            $snapToken = $denda->snap_token;
         }
 
-        // =========================================
-        // VIEW
-        // =========================================
-
-        return view(
-            'user.pengembalian.bayar_denda',
-            compact(
-                'denda',
-                'snapToken'
-            )
-        );
+        return view('user.pengembalian.bayar_denda', compact('denda', 'snapToken'));
     }
 }

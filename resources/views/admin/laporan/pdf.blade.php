@@ -136,10 +136,12 @@
     </div>
 
     <table>
+
         <thead>
             <tr>
                 <th>No</th>
                 <th>Kode Booking</th>
+                <th>NIK</th>
                 <th>Penyewa</th>
                 <th>Fasilitas</th>
                 <th>Jumlah</th>
@@ -153,56 +155,81 @@
 
         <tbody>
 
-            @forelse($detailLaporan as $item)
+            @php
+                $grouped = $detailLaporan->groupBy('kode_booking');
+            @endphp
 
-            <tr>
+            @forelse($grouped as $kodeBooking => $items)
 
-                <td class="text-center">
-                    {{ $loop->iteration }}
-                </td>
+                @php
+                    $first = $items->first();
+                    $rowspan = $items->count();
+                @endphp
 
-                <td class="text-center">
-                    {{ $item->kode_booking }}
-                </td>
+                @foreach($items as $index => $item)
 
-                <td>
-                    {{ $item->user->name ?? '-' }}
-                </td>
+                <tr>
 
-                <td>
-                    {{ $item->fasilitas->nama_fasilitas ?? '-' }}
-                </td>
+                    @if($index == 0)
 
-                <td class="text-center">
-                    {{ $item->jumlah_sewa }}
-                </td>
+                    <td class="text-center" rowspan="{{ $rowspan }}">
+                        {{ $loop->parent->iteration }}
+                    </td>
 
-                <td class="text-right">
-                    Rp {{ number_format($item->total_harga, 0, ',', '.') }}
-                </td>
+                    <td class="text-center" rowspan="{{ $rowspan }}">
+                        {{ $kodeBooking }}
+                    </td>
 
-                <td class="text-center">
-                    {{ ucfirst($item->status_sewa ?? '-') }}
-                </td>
+                    <td class="text-center" rowspan="{{ $rowspan }}">
+                        {{ $first->user->nik ?? '-' }}
+                    </td>
 
-                <td class="text-center">
-                    {{ ucfirst($item->status_pembayaran ?? '-') }}
-                </td>
+                    <td rowspan="{{ $rowspan }}">
+                        {{ $first->user->name ?? '-' }}
+                    </td>
 
-                <td class="text-center">
-                    {{ ucfirst($item->status_pengembalian ?? '-') }}
-                </td>
+                    @endif
 
-                <td class="text-center">
-                    {{ $item->created_at->format('d M Y') }}
-                </td>
+                    <td>
+                        {{ $item->fasilitas->nama_fasilitas ?? '-' }}
+                    </td>
 
-            </tr>
+                    <td class="text-center">
+                        {{ $item->jumlah_sewa }}
+                    </td>
+
+                    @if($index == 0)
+
+                    <td class="text-right" rowspan="{{ $rowspan }}">
+                        Rp {{ number_format($items->sum('total_harga'), 0, ',', '.') }}
+                    </td>
+
+                    <td class="text-center" rowspan="{{ $rowspan }}">
+                        {{ ucfirst($first->status_sewa ?? '-') }}
+                    </td>
+
+                    <td class="text-center" rowspan="{{ $rowspan }}">
+                        {{ ucfirst($first->status_pembayaran ?? '-') }}
+                    </td>
+
+                    <td class="text-center" rowspan="{{ $rowspan }}">
+                        {{ ucfirst($first->status_pengembalian ?? '-') }}
+                    </td>
+
+                    <td class="text-center" rowspan="{{ $rowspan }}">
+                        {{ $first->created_at->format('d M Y') }}
+                    </td>
+
+                    @endif
+
+                </tr>
+
+                @endforeach
 
             @empty
 
             <tr>
-                <td colspan="10" class="text-center">
+                <td colspan="11" class="text-center">
                     Data laporan tidak ditemukan
                 </td>
             </tr>
@@ -210,6 +237,7 @@
             @endforelse
 
         </tbody>
+
     </table>
 
     <div class="clearfix">

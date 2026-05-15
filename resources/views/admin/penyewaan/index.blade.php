@@ -220,8 +220,14 @@
                                 <span class="badge badge-success">Disetujui</span>
                             @elseif($first->status_sewa == 'proses')
                                 <span class="badge badge-info">Menunggu</span>
-                            @elseif($first->status_sewa == 'batal' || $first->status_sewa == 'ditolak')
-                                <span class="badge badge-danger">{{ $first->status_sewa }}</span>
+                            @elseif(
+                                $first->status_sewa == 'batal' ||
+                                $first->status_sewa == 'ditolak' ||
+                                $first->status_sewa == 'dibatalkan_user'
+                            )
+                                <span class="badge badge-danger">
+                                    {{ $first->status_sewa == 'dibatalkan_user' ? 'Dibatalkan Penyewa' : $first->status_sewa }}
+                                </span>
                             @else
                                 <span class="badge badge-warning">{{ $first->status_sewa }}</span>
                             @endif
@@ -239,7 +245,20 @@
                                         <button type="button" class="btn-action btn-reject btn-submit-reject">Tolak</button>
                                     </form>
                                 @else
-                                    <span class="status-final">Selesai Diproses</span>
+                                    @if($first->status_sewa == 'dibatalkan_user')
+
+                                        <span class="status-final"
+                                            style="background:#fee2e2; color:#991b1b;">
+                                            Dibatalkan Penyewa
+                                        </span>
+
+                                    @else
+
+                                        <span class="status-final">
+                                            Selesai Diproses
+                                        </span>
+
+                                    @endif
                                 @endif
                             </div>
                         </td>

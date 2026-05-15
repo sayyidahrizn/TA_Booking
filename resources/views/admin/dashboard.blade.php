@@ -92,6 +92,10 @@
     .disetujui { background: #10b981; }
     .selesai { background: #3b82f6; }
     .batal { background: #ef4444; }
+    .dibatalkan_user { background: #d63333; }
+    .menunggu_pengembalian {background: #0ea5e9;}
+    .menunggu_validasi_pengembalian {background: #8b5cf6;}
+    .menunggu_pembayaran_denda {background: #ef4444;}
 </style>
 
 <div class="grid-container">
@@ -118,9 +122,31 @@
     </div>
 
     <div class="card-stat" style="border-left-color: #f59e0b;">
-        <div class="stat-title">Cek Booking (Pending)</div>
+        <div class="stat-title">Cek Penyewaan (Pending)</div>
         <div class="stat-value" style="color: #f59e0b;">{{ $pending ?? 0 }}</div>
     </div>
+
+    <div class="card-stat" style="border-left-color: #0ea5e9;">
+        <div class="stat-title">Menunggu Pengembalian</div>
+        <div class="stat-value" style="color: #0369a1;">
+            {{ $menungguPengembalian ?? 0 }}
+        </div>
+    </div>
+
+    <div class="card-stat" style="border-left-color: #8b5cf6;">
+        <div class="stat-title">Validasi Pengembalian</div>
+        <div class="stat-value" style="color: #6d28d9;">
+            {{ $validasiPengembalian ?? 0 }}
+        </div>
+    </div>
+
+    <div class="card-stat" style="border-left-color: #ef4444;">
+        <div class="stat-title">Pembayaran Denda</div>
+        <div class="stat-value" style="color: #b91c1c;">
+            {{ $menungguDenda ?? 0 }}
+        </div>
+    </div>
+
 </div>
 
 <div class="charts-grid">
@@ -159,7 +185,7 @@
                 @php 
                     $p = $group->first(); 
                     $status = strtolower($p->status_sewa);
-                    $statusBayar = strtolower($p->status_pembayaran);
+                    $statusBayar = strtolower($group->status_bayar ?? 'pending');
                 @endphp
                 <tr>
                     <td style="text-align: center; font-weight: bold; color: #64748b;">{{ $loop->iteration }}</td>
@@ -176,7 +202,7 @@
                     
                     <td style="text-align: center;">
                         <span class="status-pill {{ $status }}">
-                            {{ $status == 'proses' ? 'PERLU CEK' : $status }}
+                            {{ str_replace('_', ' ', strtoupper($status)) }}
                         </span>
                     </td>
 

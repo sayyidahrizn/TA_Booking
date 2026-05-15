@@ -180,6 +180,21 @@ class PenyewaanController extends Controller
             ->groupBy('kode_booking')
             ->count();
 
+        $menungguPengembalian = Penyewaan::where('status_sewa', 'menunggu_pengembalian')
+            ->get()
+            ->groupBy('kode_booking')
+            ->count();
+
+        $validasiPengembalian = Penyewaan::where('status_sewa', 'menunggu_validasi_pengembalian')
+            ->get()
+            ->groupBy('kode_booking')
+            ->count();
+
+        $menungguDenda = Penyewaan::where('status_sewa', 'menunggu_pembayaran_denda')
+            ->get()
+            ->groupBy('kode_booking')
+            ->count();
+
         $pendapatanBulanan = Penyewaan::select(
                 DB::raw('SUM(total_harga) as total'),
                 DB::raw('MONTH(tgl_mulai) as bulan')
@@ -202,15 +217,55 @@ class PenyewaanController extends Controller
             $dataGrafik[] = $pendapatanBulanan[$i] ?? 0;
         }
 
-        $penyewaan = Penyewaan::with(['user', 'fasilitas', 'pengembalian', 'pembayaran'])
-            ->latest()
-            ->get()
-            ->groupBy('kode_booking')
-            ->take(5);
+        $penyewaan = Penyewaan::with([
+        'user',
+        'fasilitas',
+        'pengembalian',
+        'pembayaran'
+        ])
+        ->latest()
+        ->get()
+        ->groupBy('kode_booking')
+        ->map(function ($group) {
+
+            $totalTagihan = $group->sum('total_harga');
+
+            $totalBayar = 0;
+
+            foreach ($group as $item) {
+
+                if ($item->pembayaran) {
+
+                    $totalBayar += $item->pembayaran
+                        ->whereIn('status_pembayaran', [
+                            'berhasil',
+                            'diverifikasi'
+                        ])
+                        ->sum('jumlah_bayar');
+                }
+            }
+
+            $group->total_tagihan = $totalTagihan;
+            $group->total_bayar = $totalBayar;
+            $group->status_bayar = $totalBayar >= $totalTagihan
+                ? 'lunas'
+                : 'pending';
+
+            return $group;
+        })
+        ->take(5);
 
         return view('admin.dashboard', compact(
-            'totalPendapatan', 'totalFasilitas', 'totalKembali',
-            'totalPenyewaan', 'pending', 'penyewaan', 'dataGrafik'
+            'totalPendapatan',
+            'totalFasilitas',
+            'totalKembali',
+            'totalPenyewaan',
+            'pending',
+            'menungguPengembalian',
+            'validasiPengembalian',
+            'menungguDenda',
+            'penyewaan',
+            'dataGrafik'
         ));
     }
 

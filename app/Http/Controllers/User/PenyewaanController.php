@@ -26,7 +26,7 @@ class PenyewaanController extends Controller
 
         $totalPenyewaan = Penyewaan::where('id_user', Auth::id())->count();
         $penyewaanAktif = Penyewaan::where('id_user', Auth::id())
-            ->whereIn('status_sewa', ['proses', 'disetujui'])
+            ->whereIn('status_sewa', ['proses', 'disetujui', 'dibatalkan_user'])
             ->whereDoesntHave('pengembalian', function($q) {
                 $q->where('status_validasi', 'disetujui');
             })->count();
@@ -41,7 +41,7 @@ class PenyewaanController extends Controller
     {
         $data = Penyewaan::with(['fasilitas', 'pengembalian', 'pembayaran'])
             ->where('id_user', Auth::id())
-            ->whereNotIn('status_sewa', ['batal', 'selesai'])
+            ->whereNotIn('status_sewa', ['batal', 'selesai','dibatalkan_user'])
             ->latest()
             ->get()
             ->groupBy('kode_booking')
@@ -77,7 +77,7 @@ class PenyewaanController extends Controller
         $data = Penyewaan::with(['fasilitas', 'pengembalian', 'pembayaran'])
             ->where('id_user', Auth::id())
             ->where(function($query) {
-                $query->whereIn('status_sewa', ['selesai', 'batal'])
+                $query->whereIn('status_sewa', ['selesai', 'batal', 'dibatalkan_user'])
                       ->orWhereHas('pengembalian', function($q) {
                           $q->where('status_validasi', 'disetujui');
                       });
@@ -186,6 +186,55 @@ class PenyewaanController extends Controller
                 ->with('success', 'Booking berhasil diajukan.');
 
         } catch (\Exception $e) {
+            DB::rollBack();
+
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+        /**
+     * Batalkan Penyewaan oleh User
+     */
+    public function batalGroup($kode)
+    {
+        DB::beginTransaction();
+
+        try {
+
+            $data = Penyewaan::where('kode_booking', $kode)
+                ->where('id_user', Auth::id())
+                ->get();
+
+            if ($data->isEmpty()) {
+                return back()->with('error', 'Data penyewaan tidak ditemukan.');
+            }
+
+            foreach ($data as $item) {
+
+                // hanya bisa dibatalkan jika masih proses
+                if ($item->status_sewa != 'proses') {
+                    return back()->with('error', 'Penyewaan sudah divalidasi admin.');
+                }
+
+                // kembalikan stok fasilitas
+                $fasilitas = Fasilitas::find($item->id_fasilitas);
+
+                if ($fasilitas) {
+                    $fasilitas->increment('jumlah', $item->jumlah_sewa);
+                }
+
+                // update status
+                $item->update([
+                    'status_sewa' => 'dibatalkan_user'
+                ]);
+            }
+
+            DB::commit();
+
+            return back()->with('success', 'Penyewaan berhasil dibatalkan.');
+
+        } catch (\Exception $e) {
+
             DB::rollBack();
 
             return back()->with('error', $e->getMessage());

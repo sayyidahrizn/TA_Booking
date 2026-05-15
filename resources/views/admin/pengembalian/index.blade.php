@@ -299,15 +299,41 @@
 
                                 <td>
 
-                                    <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+                                    <div style="display:flex; flex-direction:column; gap:6px; align-items:center;">
+
+                                        @php
+                                            $hargaFasilitas = $item->penyewaan->fasilitas->harga;
+                                        @endphp
 
                                         @if(!$denda)
 
+                                            {{-- PILIH KONDISI --}}
+                                            <select
+                                                class="input-sm"
+                                                onchange="setJenisKerusakan(
+                                                    this,
+                                                    {{ $item->id }},
+                                                    {{ $item->denda_telat_otomatis ?? 0 }},
+                                                    {{ $hargaFasilitas }}
+                                                )"
+                                            >
+                                                <option value="">Pilih Kondisi</option>
+                                                <option value="aman">Tidak Rusak</option>
+                                                <option value="ringan">Rusak Ringan</option>
+                                                <option value="berat">Rusak Berat / Hilang</option>
+                                            </select>
+
+                                            {{-- INPUT MANUAL RINGAN --}}
                                             <input
                                                 type="text"
                                                 class="input-sm"
-                                                placeholder="Input Rupiah..."
-                                                onkeyup="formatInputRupiah(this, 'denda_real_{{ $item->id }}'); hitungTotalTagihan({{ $item->id }}, {{ $item->denda_telat_otomatis ?? 0 }});"
+                                                id="input_ringan_{{ $item->id }}"
+                                                placeholder="Input biaya..."
+                                                style="display:none;"
+                                                onkeyup="
+                                                    formatInputRupiah(this, 'denda_real_{{ $item->id }}');
+                                                    hitungTotalTagihan({{ $item->id }}, {{ $item->denda_telat_otomatis ?? 0 }});
+                                                "
                                             >
 
                                         @else
@@ -321,6 +347,7 @@
 
                                         @endif
 
+                                        {{-- VALUE ASLI --}}
                                         <input
                                             type="hidden"
                                             name="denda_rusak[{{ $item->id }}]"
@@ -328,6 +355,7 @@
                                             value="{{ $denda->biaya_kerusakan ?? 0 }}"
                                         >
 
+                                        {{-- TOTAL --}}
                                         <span class="tagihan-live" id="total_tagihan_{{ $item->id }}">
                                             Total:
                                             Rp {{
@@ -482,6 +510,59 @@ function hitungTotalTagihan(id, dendaTelat){
 
     document.getElementById('total_tagihan_' + id).innerText =
         'Total: Rp ' + new Intl.NumberFormat('id-ID').format(total);
+}
+
+function setJenisKerusakan(select, id, dendaTelat, hargaFasilitas){
+
+    let inputRingan = document.getElementById('input_ringan_' + id);
+
+    let hiddenInput = document.getElementById('denda_real_' + id);
+
+    /*
+    |--------------------------------------------------------------------------
+    | TIDAK RUSAK
+    |--------------------------------------------------------------------------
+    */
+
+    if(select.value === 'aman'){
+
+        inputRingan.style.display = 'none';
+
+        inputRingan.value = '';
+
+        hiddenInput.value = 0;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | RUSAK RINGAN
+    |--------------------------------------------------------------------------
+    */
+
+    else if(select.value === 'ringan'){
+
+        inputRingan.style.display = 'block';
+
+        hiddenInput.value = 0;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | RUSAK BERAT / HILANG
+    |--------------------------------------------------------------------------
+    */
+
+    else if(select.value === 'berat'){
+
+        inputRingan.style.display = 'none';
+
+        inputRingan.value =
+            new Intl.NumberFormat('id-ID').format(hargaFasilitas);
+
+        hiddenInput.value = hargaFasilitas;
+    }
+
+    hitungTotalTagihan(id, dendaTelat);
 }
 
 function konfirmasiLunas(idDenda){
