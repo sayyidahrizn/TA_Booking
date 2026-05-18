@@ -112,6 +112,8 @@ Route::prefix('admin')->middleware(['auth', 'isAdmin'])->group(function () {
     Route::post('/penyewaan/tolak-group/{kode}', [AdminPenyewaan::class, 'tolakGroup'])->name('admin.penyewaan.tolak.group');
     Route::delete('/penyewaan/{id}', [AdminPenyewaan::class, 'destroy'])->name('admin.penyewaan.destroy');
 
+    Route::post('/pembayaran/verifikasi/{id_pembayaran}', [AdminPenyewaan::class, 'verifikasiPembayaran'])->name('admin.pembayaran.verifikasi');
+
     Route::post('/pengembalian/validasi', [AdminPengembalianController::class, 'validasi'])->name('admin.pengembalian.validasi');
     Route::get('/pengembalian', [AdminPengembalianController::class, 'index'])->name('admin.pengembalian');
 

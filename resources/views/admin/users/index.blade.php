@@ -1,7 +1,7 @@
 @extends('admin.layout')
 
 @section('title', 'Data User')
-@section('page-title', 'Data User')
+@section('page-title', 'Kelola User')
 
 @section('content')
 

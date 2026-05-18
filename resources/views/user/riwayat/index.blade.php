@@ -152,10 +152,16 @@
                     | STATUS PEMBAYARAN
                     |--------------------------------------------------------------------------
                     */
-                    $statusPembayaran = '-';
+                    $pembayaran = $group->flatMap->pembayaran->first();
 
-                    if ($first->pembayaran && $first->pembayaran->count() > 0) {
-                        $statusPembayaran = $first->pembayaran->first()->status ?? 'belum bayar';
+                    $statusPembayaran = 'Belum Dibayar';
+
+                    if ($pembayaran) {
+                        if (in_array($pembayaran->status_pembayaran, ['berhasil', 'diverifikasi'])) {
+                            $statusPembayaran = 'Sudah Dibayar';
+                        } elseif ($pembayaran->status_pembayaran == 'pending') {
+                            $statusPembayaran = 'Menunggu';
+                        }
                     }
 
                     /*
@@ -174,10 +180,16 @@
                     | STATUS DENDA
                     |--------------------------------------------------------------------------
                     */
+                    $allDenda = $group->flatMap->denda;
+
+                    $totalDenda = $allDenda->sum('jumlah_denda');
+
                     $statusDenda = 'Tidak Ada';
 
-                    if ($first->denda && $first->denda->count() > 0) {
-                        $statusDenda = $first->denda->first()->status_pembayaran ?? 'belum bayar';
+                    if ($totalDenda > 0) {
+                        $statusDenda = $allDenda->contains('status_pembayaran', 'lunas')
+                            ? 'Lunas'
+                            : 'Belum Bayar';
                     }
 
                     /*
@@ -380,7 +392,12 @@
                             font-weight: 700;
                             text-transform: uppercase;
                         ">
-                            {{ $statusDenda }}
+                            @if($totalDenda > 0)
+                                Rp {{ number_format($totalDenda, 0, ',', '.') }} <br>
+                                <small>{{ $statusDenda }}</small>
+                            @else
+                                {{ $statusDenda }}
+                            @endif
                         </span>
                     </td>
 

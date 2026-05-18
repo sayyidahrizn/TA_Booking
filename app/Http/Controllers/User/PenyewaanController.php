@@ -74,14 +74,17 @@ class PenyewaanController extends Controller
      */
     public function riwayat()
     {
-        $data = Penyewaan::with(['fasilitas', 'pengembalian', 'pembayaran'])
-            ->where('id_user', Auth::id())
-            ->where(function($query) {
-                $query->whereIn('status_sewa', ['selesai', 'batal', 'dibatalkan_user'])
-                      ->orWhereHas('pengembalian', function($q) {
-                          $q->where('status_validasi', 'disetujui');
-                      });
-            })->latest()->get()->groupBy('kode_booking');
+        // Mengambil data penyewaan milik user yang sedang login
+        $data = Penyewaan::with([
+                'fasilitas',      // Mengambil data fasilitas terkait
+                'pengembalian',   // Mengambil data pengembalian terkait
+                'pembayaran',     // Mengambil data pembayaran terkait
+                'denda'           // Mengambil data denda terkait
+            ])
+            ->where('id_user', Auth::id()) 
+            ->latest() // Mengurutkan dari yang terbaru berdasarkan waktu buat
+            ->get()
+            ->groupBy('kode_booking'); // Dikelompokkan berdasarkan kode booking sesuai kebutuhan Blade
 
         return view('user.riwayat.index', compact('data'));
     }
@@ -119,6 +122,7 @@ class PenyewaanController extends Controller
         $request->validate([
             'keterangan' => 'nullable|string',
             'items' => 'required|array|min:1',
+            'metode_pembayaran' => 'required|in:midtrans,tunai',
         ]);
 
         $user = Auth::user();
@@ -166,7 +170,7 @@ class PenyewaanController extends Controller
 
                     // ❗ DIISI NANTI OLEH ADMIN
                     'jenis_pembayaran' => null,
-                    'metode_pembayaran' => null,
+                    'metode_pembayaran' => $request->metode_pembayaran,
 
                     // sementara 0 dulu
                     'jumlah_bayar' => 0,
@@ -182,8 +186,11 @@ class PenyewaanController extends Controller
 
             DB::commit();
 
-            return redirect()->route('user.penyewaan.index')
-                ->with('success', 'Booking berhasil diajukan.');
+            $msg = $request->metode_pembayaran == 'tunai' 
+               ? 'Booking diajukan. Silakan datang ke kantor untuk pembayaran tunai setelah disetujui.' 
+               : 'Booking diajukan. Silakan lakukan pembayaran via Midtrans setelah disetujui.';
+
+            return redirect()->route('user.penyewaan.index')->with('success', $msg);
 
         } catch (\Exception $e) {
             DB::rollBack();

@@ -101,20 +101,37 @@
                     </td>
 
                     <td style="padding: 20px 24px;">
+                        @php
+                            // Ambil data pembayaran pertama dari grup
+                            $paymentInfo = $group->flatMap->pembayaran->first();
+                        @endphp
+
                         @if($lunas)
                             <div style="color: #059669; font-weight: 700; display: flex; align-items: center; gap: 6px;">
                                 <div style="width: 8px; height: 8px; background: #059669; border-radius: 50%;"></div>
                                 TERBAYAR LUNAS
                             </div>
                         @elseif($statusSewa == 'disetujui')
-                            <a href="{{ route('user.pembayaran.index', $idUntukBayar) }}" 
-                               style="display: inline-block; background: {{ $sudahAdaBayar ? '#f59e0b' : '#059669' }}; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px; transition: opacity 0.3s;">
-                                {{ $sudahAdaBayar ? 'Bayar Sisa' : 'Bayar Sekarang' }}
-                            </a>
-                            @if($sudahAdaBayar)
-                                <div style="font-size: 11px; color: #ef4444; margin-top: 6px; font-weight: 700;">
-                                    Sisa: Rp {{ number_format($sisaTagihan, 0, ',', '.') }}
+                            {{-- JIKA METODE TUNAI --}}
+                            @if($paymentInfo && $paymentInfo->metode_pembayaran == 'tunai')
+                                <div style="background: #fff7ed; border: 1px solid #ffedd5; padding: 10px; border-radius: 8px;">
+                                    <span style="color: #9a3412; font-weight: 700; font-size: 12px; display: block;">METODE TUNAI</span>
+                                    <p style="font-size: 11px; color: #c2410c; margin: 4px 0 0;">Segera ke kantor untuk pelunasan.</p>
+                                    <div style="font-size: 11px; color: #ef4444; margin-top: 6px; font-weight: 700;">
+                                        Sisa: Rp {{ number_format($sisaTagihan, 0, ',', '.') }}
+                                    </div>
                                 </div>
+                            {{-- JIKA METODE MIDTRANS --}}
+                            @else
+                                <a href="{{ route('user.pembayaran.index', $idUntukBayar) }}" 
+                                style="display: inline-block; background: {{ $sudahAdaBayar ? '#f59e0b' : '#059669' }}; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px; transition: opacity 0.3s;">
+                                    {{ $sudahAdaBayar ? 'Bayar Sisa' : 'Bayar Sekarang' }}
+                                </a>
+                                @if($sudahAdaBayar)
+                                    <div style="font-size: 11px; color: #ef4444; margin-top: 6px; font-weight: 700;">
+                                        Sisa: Rp {{ number_format($sisaTagihan, 0, ',', '.') }}
+                                    </div>
+                                @endif
                             @endif
                         @else
                             <span style="color: #94a3b8; font-style: italic; font-size: 13px;">Menunggu Konfirmasi Admin</span>

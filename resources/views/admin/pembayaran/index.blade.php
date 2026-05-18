@@ -217,6 +217,78 @@
     .fsl-pagination-nav .page-link:hover:not(.active):not(.disabled) {
         background-color: #f1f5f9 !important;
     }
+    /* Mengecilkan input group agar pas di dalam baris tabel */
+    .input-group-sm > .form-control {
+        font-size: 12px;
+        height: 32px;
+    }
+    /* Style Baru untuk Input Nominal di Tabel */
+    .action-input-wrapper {
+        display: flex;
+        align-items: center;
+        background: #ffffff;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 2px 4px;
+        transition: all 0.3s ease;
+        width: 180px; /* Ukuran pas untuk kolom aksi */
+        margin: 0 auto;
+    }
+
+    .action-input-wrapper:focus-within {
+        border-color: #10b981; /* Hijau agar senada dengan tombol simpan */
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+
+    .currency-symbol {
+        font-size: 11px;
+        font-weight: 700;
+        color: #94a3b8;
+        padding-left: 8px;
+        user-select: none;
+    }
+
+    .nominal-input {
+        border: none !important;
+        background: transparent !important;
+        font-size: 12px !important;
+        font-weight: 600;
+        color: #334155;
+        padding: 6px 8px !important;
+        width: 100%;
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
+    .btn-save-nominal {
+        background-color: #10b981;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .btn-save-nominal:hover {
+        background-color: #059669;
+    }
+
+    /* Hilangkan panah up/down di input number */
+    .nominal-input::-webkit-outer-spin-button,
+    .nominal-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    .btn-success.btn-sm {
+        padding: 2px 10px;
+        font-size: 11px;
+    }
 </style>
 
 <div class="container-fluid py-4">
@@ -253,6 +325,7 @@
                         <th class="text-end">PEMBAYARAN</th>
                         <th class="text-end">SISA TAGIHAN</th>
                         <th class="text-center">STATUS PEMBAYARAN</th>
+                        <th class="text-center" width="10%">AKSI</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -263,6 +336,13 @@
                             $totalBayar = $items->total_bayar ?? 0;
                             $sisaTagihan = $items->sisa_tagihan ?? 0;
                             $statusPembayaran = $items->status_custom ?? 'pending';
+
+                            // Ambil data pembayaran yang statusnya masih pending dan tipenya tunai
+                            // agar admin bisa melakukan input nominal
+                            $pembayaranPending = $items->flatMap->pembayaran
+                                                ->where('status_pembayaran', 'pending')
+                                                ->where('metode_pembayaran', 'tunai')
+                                                ->first();
                         @endphp
                         <tr>
                             <td class="text-center fw-bold text-muted">
@@ -300,6 +380,37 @@
                                     {{ $statusPembayaran }}
                                 </span>
                             </td>
+                            <td class="text-center">
+                                @if($statusPembayaran != 'lunas' && $pembayaranPending)
+                                    <form action="{{ route('admin.pembayaran.verifikasi', $pembayaranPending->id_pembayaran) }}" method="POST">
+                                        @csrf
+                                        <div class="action-input-wrapper">
+                                            <span class="currency-symbol">Rp</span>
+                                            
+                                            <input type="text" 
+                                                class="nominal-input" 
+                                                placeholder="0" 
+                                                onkeyup="formatRupiah(this)"
+                                                required>
+                                            
+                                            <input type="hidden" name="jumlah_bayar" class="raw-nominal">
+
+                                            <button type="submit" class="btn-save-nominal">
+                                                <i class="fas fa-check"></i>
+                                                <span>Simpan</span>
+                                            </button>
+                                        </div>
+                                    </form>
+                                @elseif($statusPembayaran == 'lunas')
+                                    <div class="text-success fw-bold" style="font-size: 12px;">
+                                        <i class="fas fa-check-circle mr-1"></i> Selesai
+                                    </div>
+                                @else
+                                    <span class="badge bg-light text-muted border" style="font-weight: 500; font-size: 11px; padding: 5px 10px;">
+                                        <i class="fas fa-external-link-alt mr-1"></i> Midtrans
+                                    </span>
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         <tr>
@@ -325,4 +436,31 @@
     </div>
 </div>
 
+<script>
+function formatRupiah(element) {
+    // 1. Ambil angka saja
+    let number_string = element.value.replace(/[^,\d]/g, '').toString();
+    let split = number_string.split(',');
+    let sisa = split[0].length % 3;
+    let rupiah = split[0].substr(0, sisa);
+    let ribuan = split[0].substr(sisa).match(/\d{3}/gi);
+
+    // 2. Tambahkan titik jika ribuan
+    if (ribuan) {
+        let separator = sisa ? '.' : '';
+        rupiah += separator + ribuan.join('.');
+    }
+
+    rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
+    
+    // 3. Cetak ke layar
+    element.value = rupiah;
+
+    // 4. Update hidden input (hapus semua titik agar jadi angka murni)
+    let rawValue = number_string; 
+    element.closest('form').querySelector('.raw-nominal').value = rawValue;
+}
+</script>
+
 @endsection
+

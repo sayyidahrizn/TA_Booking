@@ -75,7 +75,7 @@
 </style>
 
 <div class="form-card">
-    <h2>Form Tambah User</h2>
+    <h2>Formulir Tambah User</h2>
 
     <form action="{{ route('users.store') }}" method="POST">
         @csrf

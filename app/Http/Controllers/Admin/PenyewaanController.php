@@ -16,22 +16,42 @@ class PenyewaanController extends Controller
     /**
      * VERIFIKASI PEMBAYARAN MANUAL
      */
-    public function verifikasiPembayaran($id_pembayaran)
+    public function verifikasiPembayaran(Request $request, $id_pembayaran)
     {
+        // Validasi input nominal
+        $request->validate([
+            'jumlah_bayar' => 'required|numeric|min:1'
+        ]);
+
         DB::beginTransaction();
         try {
             $pembayaran = Pembayaran::with('penyewaan')->findOrFail($id_pembayaran);
+            $totalHarga = $pembayaran->penyewaan->total_harga;
+            $inputBayar = $request->jumlah_bayar;
 
+            // 1. Update data pembayaran yang sedang diverifikasi
             $pembayaran->update([
                 'status_pembayaran' => 'diverifikasi',
                 'tanggal_bayar' => now(),
                 'metode_pembayaran' => 'tunai',
-                // PENTING: Pastikan jumlah_bayar diupdate dari total_harga penyewaan terkait
-                'jumlah_bayar' => $pembayaran->penyewaan->total_harga 
+                'jumlah_bayar' => $inputBayar,
+                'jenis_pembayaran' => ($inputBayar < $totalHarga) ? 'dp' : 'pelunasan'
             ]);
 
+            // 2. Jika bayarnya belum lunas (DP), buatkan record pembayaran baru untuk sisanya
+            if ($inputBayar < $totalHarga) {
+                Pembayaran::create([
+                    'id_penyewaan' => $pembayaran->id_penyewaan,
+                    'kode_pembayaran' => 'PAY-' . time() . '-SISA',
+                    'jenis_pembayaran' => 'pelunasan',
+                    'metode_pembayaran' => 'tunai',
+                    'jumlah_bayar' => 0,
+                    'status_pembayaran' => 'pending',
+                ]);
+            }
+
             DB::commit();
-            return back()->with('success', 'Pembayaran diverifikasi. User sekarang bisa cetak bukti.');
+            return back()->with('success', 'Pembayaran tunai sebesar Rp ' . number_format($inputBayar) . ' berhasil diverifikasi.');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -345,21 +365,26 @@ class PenyewaanController extends Controller
                 $pembayaran = Pembayaran::where('id_penyewaan', $item->id_penyewaan)->first();
 
                 if ($pembayaran) {
-                    // UPDATE (KARENA SUDAH DIBUAT DARI USER)
+                    /**
+                     * PERBAIKAN: 
+                     * Ambil metode pembayaran yang sudah dipilih user di awal (Tunai atau Midtrans).
+                     * Jangan di-hardcode ke 'midtrans'.
+                     */
+                    $metodeUser = $pembayaran->metode_pembayaran ?? 'midtrans';
+
                     $pembayaran->update([
                         'jenis_pembayaran' => 'pelunasan',
-                        'metode_pembayaran' => 'midtrans',
-                        'jumlah_bayar' => $item->total_harga,
+                        'metode_pembayaran' => $metodeUser, // Menggunakan metode pilihan user
                         'status_pembayaran' => 'pending'
                     ]);
                 } else {
-                    // CREATE (JAGA-JAGA KALAU BELUM ADA)
+                    // Jaga-jaga jika record pembayaran belum terbuat
                     Pembayaran::create([
                         'id_penyewaan' => $item->id_penyewaan,
                         'kode_pembayaran' => 'PAY-' . time(),
                         'jenis_pembayaran' => 'lunas',
-                        'metode_pembayaran' => 'midtrans',
-                        'jumlah_bayar' => $item->total_harga,
+                        'metode_pembayaran' => 'midtrans', // Default jika record baru
+                        'jumlah_bayar' => 0,
                         'status_pembayaran' => 'pending',
                     ]);
                 }

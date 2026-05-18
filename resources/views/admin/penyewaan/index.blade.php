@@ -1,6 +1,6 @@
 @extends('admin.layout')
 
-@section('page-title', 'Penyewaan Fasilitas')
+@section('page-title', 'Data Pengajuan Sewa')
 
 @section('content')
 
@@ -164,7 +164,7 @@
 <div class="main-wrapper">
     {{-- HEADER: SEARCH & FILTER --}}
     <div class="header-section">
-        <h4 style="font-weight: 700; color: #1e293b; margin: 0;">Data Pengajuan Sewa</h4>
+        <h4 style="font-weight: 700; color: #1e293b; margin: 0;"></h4>
         
         <form action="{{ route('admin.penyewaan.index') }}" method="GET" class="search-form">
             <div class="search-group">

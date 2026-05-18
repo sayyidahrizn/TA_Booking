@@ -102,6 +102,23 @@
             <label style="display: block; margin-bottom: 8px; font-weight: 600;">Keterangan Acara</label>
             <textarea name="keterangan" rows="3" placeholder="Tujuan penggunaan..." style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px;">{{ old('keterangan') }}</textarea>
         </div>
+        {{-- Tambahkan di atas tombol Kirim Pengajuan Sewa --}}
+        <div style="margin-bottom: 25px; padding: 20px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+            <label style="display: block; margin-bottom: 12px; font-weight: 700; color: #166534;">Metode Pembayaran</label>
+            <div style="display: flex; gap: 20px;">
+                <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                    <input type="radio" name="metode_pembayaran" value="midtrans" checked style="width: 18px; height: 18px;">
+                    <span style="font-weight: 600;">Transfer Otomatis (Midtrans)</span>
+                </label>
+                <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                    <input type="radio" name="metode_pembayaran" value="tunai" style="width: 18px; height: 18px;">
+                    <span style="font-weight: 600;">Tunai (Bayar di Kantor)</span>
+                </label>
+            </div>
+            <p id="info_pembayaran" style="margin-top: 10px; font-size: 13px; color: #166534;">
+                * Bayar praktis dari rumah menggunakan VA, E-Wallet, atau Kartu Kredit.
+            </p>
+        </div>
 
         <button type="submit" id="submitAll" disabled style="width: 100%; padding: 14px; background: #4f46e5; color: white; border: none; border-radius: 6px; cursor: not-allowed; font-size: 16px; font-weight: bold; opacity: 0.5;">
             Kirim Pengajuan Sewa (<span id="countDisplay">0 item</span>)
@@ -634,4 +651,17 @@
             `<span class="loader"></span> Sedang Mengirim...`;
     };
 </script>
+<script>
+            // Script tambahan untuk ganti info teks saat radio button diklik
+            document.querySelectorAll('input[name="metode_pembayaran"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const info = document.getElementById('info_pembayaran');
+                    if(this.value === 'tunai') {
+                        info.innerHTML = "<strong>INFO:</strong> Silakan segera datang ke kantor desa dengan membawa identitas diri untuk melakukan pembayaran setelah pengajuan disetujui admin.";
+                    } else {
+                        info.innerHTML = "* Bayar praktis dari rumah menggunakan VA, E-Wallet, atau Kartu Kredit.";
+                    }
+                });
+            });
+        </script>
 @endsection
