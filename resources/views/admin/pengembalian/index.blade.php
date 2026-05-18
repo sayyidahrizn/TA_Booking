@@ -180,6 +180,15 @@
         font-weight: 700;
     }
 
+    .booking-group-start td{
+    border-top: 2px solid #cbd5e1 !important;
+    background: #fcfcff;
+    }
+
+    .booking-empty{
+        color: transparent;
+    }
+
     @media(max-width:768px){
 
         .custom-table th,
@@ -222,59 +231,89 @@
                         </tr>
                     </thead>
 
-                    <tbody>
+                   <tbody>
 
                         @php $no = 1; @endphp
 
                         @forelse($data as $tanggal => $items)
 
+                            @php
+                                $lastBooking = null;
+                            @endphp
+
                             @foreach($items as $item)
 
                             @php
                                 $denda = $item->penyewaan->denda;
+
+                                $currentBooking = $item->penyewaan->kode_penyewaan;
+
+                                $isNewBooking = $lastBooking != $currentBooking;
+
+                                $lastBooking = $currentBooking;
                             @endphp
 
-                            <tr>
+                            <tr class="{{ $isNewBooking ? 'booking-group-start' : '' }}">
 
-                                <td>{{ $no++ }}</td>
-
-                                <td style="text-align:left; min-width:140px;">
-                                    <strong>
-                                        {{ \Carbon\Carbon::parse($item->penyewaan->tgl_mulai)->translatedFormat('d M Y') }}
-                                    </strong>
-                                    <br>
-                                    <small>
-                                        s/d {{ \Carbon\Carbon::parse($item->penyewaan->tgl_selesai)->translatedFormat('d M Y') }}
-                                    </small>
+                                {{-- NO --}}
+                                <td>
+                                    @if($isNewBooking)
+                                        {{ $no++ }}
+                                    @endif
                                 </td>
 
-                                <!-- PENYEWA + KODE BOOKING -->
+                                {{-- PERIODE --}}
+                                <td style="text-align:left; min-width:140px;">
+
+                                    {{-- @if($isNewBooking) --}}
+
+                                        <strong>
+                                            {{ \Carbon\Carbon::parse($item->penyewaan->tgl_mulai)->translatedFormat('d M Y') }}
+                                        </strong>
+                                        <br>
+                                        <small>
+                                            s/d {{ \Carbon\Carbon::parse($item->penyewaan->tgl_selesai)->translatedFormat('d M Y') }}
+                                        </small>
+
+                                    {{-- @endif --}}
+
+                                </td>
+
+                                {{-- PENYEWA --}}
                                 <td style="text-align:left; min-width:180px;">
 
-                                    <div style="font-weight:700; color:#1e293b;">
-                                        {{ $item->penyewaan->user->name ?? '-' }}
-                                    </div>
+                                    {{-- @if($isNewBooking) --}}
 
-                                    <span class="kode-booking">
-                                        {{ $item->penyewaan->kode_booking ?? '-' }}
-                                    </span>
+                                        <div style="font-weight:700; color:#1e293b;">
+                                            {{ $item->penyewaan->user->name ?? '-' }}
+                                        </div>
+
+                                        <span class="kode-booking">
+                                            {{ $item->penyewaan->kode_penyewaan ?? '-' }}
+                                        </span>
+
+                                    {{-- @endif --}}
 
                                 </td>
 
+                                {{-- FASILITAS --}}
                                 <td style="font-weight:600;">
                                     {{ $item->penyewaan->fasilitas->nama_fasilitas }}
                                 </td>
 
+                                {{-- BUKTI --}}
                                 <td>
                                     <a href="{{ asset('storage/'.$item->bukti_pengembalian) }}" target="_blank">
                                         <img src="{{ asset('storage/'.$item->bukti_pengembalian) }}" class="img-preview">
                                     </a>
                                 </td>
 
+                                {{-- TANGGAL --}}
                                 <td>
                                     {{ \Carbon\Carbon::parse($item->tanggal_pengembalian)->format('d/m/Y') }}
                                 </td>
 
+                                {{-- DENDA TELAT --}}
                                 <td>
 
                                     @if($item->denda_telat_otomatis > 0)
@@ -297,6 +336,8 @@
 
                                 </td>
 
+                                {{-- DENDA KERUSAKAN --}}
+                                {{-- DENDA KERUSAKAN --}}
                                 <td>
 
                                     <div style="display:flex; flex-direction:column; gap:6px; align-items:center;">
@@ -307,8 +348,8 @@
 
                                         @if(!$denda)
 
-                                            {{-- PILIH KONDISI --}}
                                             <select
+                                                name="jenis_kerusakan[{{ $item->id }}]"
                                                 class="input-sm"
                                                 onchange="setJenisKerusakan(
                                                     this,
@@ -318,12 +359,20 @@
                                                 )"
                                             >
                                                 <option value="">Pilih Kondisi</option>
-                                                <option value="aman">Tidak Rusak</option>
-                                                <option value="ringan">Rusak Ringan</option>
-                                                <option value="berat">Rusak Berat / Hilang</option>
+
+                                                <option value="tidak_rusak">
+                                                    Tidak Rusak
+                                                </option>
+
+                                                <option value="ringan">
+                                                    Rusak Ringan
+                                                </option>
+
+                                                <option value="berat">
+                                                    Rusak Berat / Hilang
+                                                </option>
                                             </select>
 
-                                            {{-- INPUT MANUAL RINGAN --}}
                                             <input
                                                 type="text"
                                                 class="input-sm"
@@ -332,7 +381,10 @@
                                                 style="display:none;"
                                                 onkeyup="
                                                     formatInputRupiah(this, 'denda_real_{{ $item->id }}');
-                                                    hitungTotalTagihan({{ $item->id }}, {{ $item->denda_telat_otomatis ?? 0 }});
+                                                    hitungTotalTagihan(
+                                                        {{ $item->id }},
+                                                        {{ $item->denda_telat_otomatis ?? 0 }}
+                                                    );
                                                 "
                                             >
 
@@ -347,7 +399,6 @@
 
                                         @endif
 
-                                        {{-- VALUE ASLI --}}
                                         <input
                                             type="hidden"
                                             name="denda_rusak[{{ $item->id }}]"
@@ -355,7 +406,6 @@
                                             value="{{ $denda->biaya_kerusakan ?? 0 }}"
                                         >
 
-                                        {{-- TOTAL --}}
                                         <span class="tagihan-live" id="total_tagihan_{{ $item->id }}">
                                             Total:
                                             Rp {{
@@ -373,6 +423,7 @@
 
                                 </td>
 
+                                {{-- CATATAN --}}
                                 <td>
 
                                     @if(!$denda)
@@ -397,64 +448,71 @@
 
                                 </td>
 
+                                {{-- STATUS --}}
                                 <td>
 
-                                    @if(!$denda)
+                                    {{-- @if($isNewBooking) --}}
 
-                                        <span class="badge-status bg-warning-soft">
-                                            Belum Divalidasi
-                                        </span>
+                                        @if(!$denda)
 
-                                    @elseif($denda->status_denda == 'belum_bayar')
+                                            <span class="badge-status bg-warning-soft">
+                                                Belum Divalidasi
+                                            </span>
 
-                                        <span class="badge-status bg-warning-soft">
-                                            Menunggu Bayar
-                                        </span>
+                                        @elseif($denda->status_denda == 'belum_bayar')
 
-                                    @else
+                                            <span class="badge-status bg-warning-soft">
+                                                Menunggu Bayar
+                                            </span>
 
-                                        <span class="badge-status bg-success-soft">
-                                            Lunas
-                                        </span>
+                                        @else
 
-                                    @endif
+                                            <span class="badge-status bg-success-soft">
+                                                Lunas
+                                            </span>
+
+                                        @endif
+
+                                    {{-- @endif --}}
 
                                 </td>
 
+                                {{-- AKSI --}}
                                 <td style="min-width:160px;">
 
-                                    {{-- BELUM VALIDASI --}}
-                                    @if(!$denda)
+                                    {{-- @if($isNewBooking) --}}
 
-                                        <button
-                                            type="submit"
-                                            class="btn-action btn-primary-custom"
-                                        >
-                                            Selesaikan & Tagih
-                                        </button>
+                                        @if(!$denda)
 
-                                    {{-- SUDAH VALIDASI TAPI BELUM BAYAR --}}
-                                    @elseif($denda->status_denda == 'belum_bayar')
+                                            <button
+                                                type="submit"
+                                                class="btn-action btn-primary-custom"
+                                            >
+                                                Selesaikan & Tagih
+                                            </button>
 
-                                        <button
-                                            type="button"
-                                            class="btn-action btn-success-custom"
-                                            onclick="konfirmasiLunas({{ $denda->id_denda }})"
-                                        >
-                                            Konfirmasi Lunas
-                                        </button>
+                                        @elseif($denda->status_denda == 'belum_bayar')
 
-                                    {{-- SUDAH LUNAS --}}
-                                    @else
+                                            <button
+                                                type="button"
+                                                class="btn-action btn-success-custom"
+                                                onclick="konfirmasiLunas({{ $denda->id_denda }})"
+                                            >
+                                                Konfirmasi Lunas
+                                            </button>
 
-                                        <button
-                                            type="button"
-                                            class="btn-action btn-disabled"
-                                        >
-                                            Sudah Divalidasi
-                                        </button>
+                                        @else
 
-                                    @endif
+                                            <button
+                                                type="button"
+                                                class="btn-action btn-disabled"
+                                            >
+                                                Sudah Divalidasi
+                                            </button>
+
+                                        @endif
+
+                                    {{-- @endif --}}
 
                                 </td>
 
@@ -504,7 +562,8 @@ function formatInputRupiah(element, targetId){
 
 function hitungTotalTagihan(id, dendaTelat){
 
-    let dendaRusak = parseInt(document.getElementById('denda_real_' + id).value) || 0;
+    let dendaRusak =
+        parseInt(document.getElementById('denda_real_' + id).value) || 0;
 
     let total = parseInt(dendaTelat) + dendaRusak;
 
@@ -514,9 +573,11 @@ function hitungTotalTagihan(id, dendaTelat){
 
 function setJenisKerusakan(select, id, dendaTelat, hargaFasilitas){
 
-    let inputRingan = document.getElementById('input_ringan_' + id);
+    let inputRingan =
+        document.getElementById('input_ringan_' + id);
 
-    let hiddenInput = document.getElementById('denda_real_' + id);
+    let hiddenInput =
+        document.getElementById('denda_real_' + id);
 
     /*
     |--------------------------------------------------------------------------
@@ -524,7 +585,7 @@ function setJenisKerusakan(select, id, dendaTelat, hargaFasilitas){
     |--------------------------------------------------------------------------
     */
 
-    if(select.value === 'aman'){
+    if(select.value === 'tidak_rusak'){
 
         inputRingan.style.display = 'none';
 
@@ -543,6 +604,8 @@ function setJenisKerusakan(select, id, dendaTelat, hargaFasilitas){
 
         inputRingan.style.display = 'block';
 
+        inputRingan.value = '';
+
         hiddenInput.value = 0;
     }
 
@@ -560,6 +623,21 @@ function setJenisKerusakan(select, id, dendaTelat, hargaFasilitas){
             new Intl.NumberFormat('id-ID').format(hargaFasilitas);
 
         hiddenInput.value = hargaFasilitas;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | DEFAULT
+    |--------------------------------------------------------------------------
+    */
+
+    else{
+
+        inputRingan.style.display = 'none';
+
+        inputRingan.value = '';
+
+        hiddenInput.value = 0;
     }
 
     hitungTotalTagihan(id, dendaTelat);

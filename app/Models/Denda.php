@@ -18,9 +18,10 @@ class Denda extends Model
         'biaya_kerusakan',
         'total_denda',
         'keterangan_kerusakan',
-        'status_denda', // 'belum_bayar', 'lunas'
+        'status_denda',
+        'jenis_kerusakan', // 'belum_bayar', 'lunas'
         'snap_token',   // Untuk menyimpan token Midtrans
-        'tanggal_bayar'
+        'kode_pembayaran'
     ];
 
     /**

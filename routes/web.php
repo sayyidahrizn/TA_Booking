@@ -64,6 +64,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/user/pembayaran/{id}/proses', [PembayaranController::class, 'proses'])
         ->name('user.pembayaran.proses');
 
+    Route::get('/user/pembayaran/cek-status/{type}/{idOrKode}', [PembayaranController::class, 'cekStatusManual'])
+    ->name('pembayaran.cek');
+
     Route::get('/user/pelunasan/{id}', [App\Http\Controllers\User\PembayaranController::class, 'pelunasan'])
     ->name('user.pelunasan.index');
 

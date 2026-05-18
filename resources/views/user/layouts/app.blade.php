@@ -17,7 +17,7 @@
             background-color: #f1f5f9;
         }
 
-        /* ===== SIDEBAR ===== */
+        /* ===== SIDEBAR (DIPERBAIKI DENGAN FLEXBOX) ===== */
         .sidebar {
             width: 220px;
             height: 100vh;
@@ -26,52 +26,117 @@
             top: 0;
             left: 0;
             color: white;
-            overflow: hidden;
             z-index: 100;
+            
+            /* Menggunakan Flexbox untuk memisahkan menu atas & footer logout */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between; 
+            overflow: hidden;
+        }
+
+        /* Container Menu Navigasi Atas */
+        .sidebar-menu {
+            width: 100%;
+            overflow-y: auto; /* Scroll internal jika menu sangat banyak */
+        }
+
+        /* Gaya Area Logo */
+        .sidebar-logo {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            margin-bottom: 10px;
+        }
+
+        .sidebar-logo .logo-img {
+            width: 55px;
+            height: auto;
+            margin-bottom: 10px;
+            object-fit: contain;
+            border-radius: 8px;
+            background: transparent;
         }
 
         .sidebar h2 {
             text-align: center;
-            padding: 20px 10px;
-            border-bottom: 1px solid rgba(255,255,255,0.3);
             margin: 0;
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
         }
 
+        /* Gaya Default Link & Button Navigasi */
         .sidebar a,
         .sidebar button {
-            display: block;
+            display: flex;
+            align-items: center;
             width: 100%;
             padding: 14px 20px;
-            color: white;
+            color: rgba(255, 255, 255, 0.75); /* Teks sedikit redup saat tidak aktif */
             text-decoration: none;
             background: none;
             border: none;
-            font-size: 16px;
+            font-size: 15px;
             font-family: inherit;
             text-align: left;
             cursor: pointer;
             box-sizing: border-box;
-            transition: 0.2s;
+            transition: all 0.2s ease-in-out;
+            border-left: 4px solid transparent; /* Cadangan border untuk efek aktif */
         }
 
+        /* Sinkronisasi Jarak Icon FontAwesome */
+        .sidebar a i, 
+        .sidebar button i {
+            margin-right: 12px;
+            width: 20px;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        /* ===== 1. EFEK HOVER (Saat Kursor Menempel) ===== */
         .sidebar a:hover,
         .sidebar button:hover {
-            background-color: #1e40af;
+            color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.1); /* Background putih transparan tipis */
+            padding-left: 24px; /* Efek bergeser smooth ke kanan */
         }
 
-        .sidebar .active {
-            background-color: #1e40af;
+        /* ===== 2. EFEK ACTIVE (Halaman Yang Sedang Dibuka) ===== */
+        .sidebar .active,
+        .sidebar .active:hover {
+            background-color: #1e40af !important;
+            color: #ffffff !important;
             font-weight: bold;
+            border-left: 4px solid #38bdf8; /* Garis vertikal indikator warna biru muda */
+            padding-left: 20px; /* Dikunci agar tidak bergeser lagi saat di-hover */
+        }
+
+        /* Container Footer Sidebar (Logout) */
+        .sidebar-footer {
+            width: 100%;
+            border-top: 1px solid rgba(255,255,255,0.15);
+            background-color: #1a337e; /* Warna dasar sedikit lebih gelap */
+        }
+
+        /* Hover khusus tombol logout jadi warna merah */
+        .sidebar-footer button:hover {
+            background-color: #ef4444; 
+            color: white;
+            padding-left: 20px; /* Tetap stabil di tempat */
         }
 
         /* ===== MAIN WRAPPER ===== */
         .main-wrapper {
             margin-left: 220px;
             min-height: 100vh;
-            padding-top: 10px; /* Memberikan sedikit ruang di paling atas */
+            padding-top: 10px;
         }
 
-        /* ===== TOPBAR (DIUBAH AGAR SESUAI GAMBAR) ===== */
+        /* ===== TOPBAR ===== */
         .topbar {
             height: 70px;
             background: rgb(215, 214, 229);
@@ -80,16 +145,13 @@
             align-items: center;
             padding: 0 30px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            
-            /* Penyesuaian Jarak agar Melayang */
-            margin: 20px;            /* Memberikan jarak atas, bawah, kiri, kanan */
-            border-radius: 12px;     /* Membuat sudut melengkung seperti di gambar */
+            margin: 20px;            
+            border-radius: 12px;     
             position: sticky;
-            top: 20px;               /* Tetap melayang saat di-scroll */
+            top: 20px;               
             z-index: 99;
         }
 
-        /* Container untuk judul di sebelah kiri */
         .page-title-area {
             display: flex;
             flex-direction: column;
@@ -102,7 +164,6 @@
             color: #111827;
         }
 
-        /* Navigasi Profil di Kanan */
         .user-nav {
             display: flex;
             align-items: center;
@@ -142,14 +203,14 @@
 
         /* ===== CONTENT ===== */
         .content {
-            padding: 0 25px 25px 25px; /* Padding samping dan bawah */
+            padding: 0 25px 25px 25px; 
         }
 
-        /* ===== TABLE & CARD (FITUR TETAP) ===== */
+        /* ===== TABLE & CARD ===== */
         .card {
             background: rgb(165, 193, 238);
             padding: 20px;
-            border-radius: 8px; /* Disamakan sedikit lebih bulat */
+            border-radius: 8px; 
             box-shadow: 0 2px 6px rgba(0,0,0,0.1);
             margin-bottom: 20px;
         }
@@ -193,12 +254,10 @@
 
         {{-- TOPBAR DENGAN TAMPILAN MELAYANG --}}
         <div class="topbar">
-            {{-- Bagian Judul Halaman (Kiri) --}}
             <div class="page-title-area">
                 <h3>@yield('page_title_content')</h3>
             </div>
 
-            {{-- Bagian Profil (Kanan) --}}
             <a href="{{ route('user.profile') }}" class="user-nav">
                 <div class="user-details">
                     <div class="user-name">{{ auth()->user()->name }}</div>

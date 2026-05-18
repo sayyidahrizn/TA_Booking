@@ -53,78 +53,146 @@ class PengembalianController extends Controller
     public function validasi(Request $request)
     {
         $request->validate([
-            'jenis_kerusakan.*' => 'required',
-            'denda_rusak.*'     => 'nullable|numeric|min:0',
-            'catatan_admin.*'   => 'nullable|string',
+            'jenis_kerusakan'   => 'required|array',
+            'denda_rusak'       => 'required|array',
+            'catatan_admin'     => 'nullable|array',
         ]);
 
         DB::beginTransaction();
 
         try {
-            if ($request->denda_rusak) {
-                foreach ($request->denda_rusak as $id => $dendaRusak) {
-                    $item = Pengembalian::with(['penyewaan.fasilitas'])->findOrFail($id);
 
-                    // HITUNG DENDA TELAT (FIXED LOGIC)
-                    $deadline = Carbon::parse($item->penyewaan->tgl_selesai)->startOfDay();
-                    $tglKembali = Carbon::parse($item->tanggal_pengembalian)->startOfDay();
-                    $dendaTelat = 0;
+            foreach ($request->jenis_kerusakan as $idPengembalian => $jenisKerusakan) {
 
-                    if ($tglKembali->gt($deadline)) {
-                        $hariTelat = $deadline->diffInDays($tglKembali);
-                        $dendaTelat = $hariTelat * 10000;
-                    }
+                $item = Pengembalian::with([
+                    'penyewaan.fasilitas',
+                    'penyewaan.denda'
+                ])->findOrFail($idPengembalian);
 
-                    // HITUNG BIAYA RUSAK
-                    $jenisKerusakan = $request->jenis_kerusakan[$id] ?? 'tidak_rusak';
-                    $biayaRusak = 0;
+                /*
+                |--------------------------------------------------------------------------
+                | HITUNG DENDA KETERLAMBATAN
+                |--------------------------------------------------------------------------
+                */
 
-                    if ($jenisKerusakan == 'ringan') {
-                        $biayaRusak = (float)($dendaRusak ?? 0);
-                    } elseif ($jenisKerusakan == 'berat') {
-                        $biayaRusak = $item->penyewaan->fasilitas->harga ?? 0;
-                    }
+                $deadline = Carbon::parse(
+                    $item->penyewaan->tgl_selesai
+                )->startOfDay();
 
-                    $totalDenda = $dendaTelat + $biayaRusak;
-                    $catatan = $request->catatan_admin[$id] ?? null;
+                $tglKembali = Carbon::parse(
+                    $item->tanggal_pengembalian
+                )->startOfDay();
 
-                    // UPDATE STATUS PENGEMBALIAN
-                    $item->update([
-                        'status_validasi' => 'disetujui',
-                        'catatan_admin'   => $catatan,
+                $hariTelat = 0;
+                $dendaTelat = 0;
+
+                if ($tglKembali->gt($deadline)) {
+
+                    $hariTelat = $deadline->diffInDays($tglKembali);
+
+                    $dendaTelat = $hariTelat * 10000;
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | HITUNG DENDA KERUSAKAN
+                |--------------------------------------------------------------------------
+                */
+
+                $biayaRusak = 0;
+
+                $inputDendaRusak =
+                    $request->denda_rusak[$idPengembalian] ?? 0;
+
+                if ($jenisKerusakan == 'ringan') {
+
+                    $biayaRusak = (int) $inputDendaRusak;
+
+                } elseif ($jenisKerusakan == 'berat') {
+
+                    $biayaRusak =
+                        $item->penyewaan->fasilitas->harga ?? 0;
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | TOTAL DENDA
+                |--------------------------------------------------------------------------
+                */
+
+                $totalDenda = $dendaTelat + $biayaRusak;
+
+                $catatan =
+                    $request->catatan_admin[$idPengembalian] ?? null;
+
+                /*
+                |--------------------------------------------------------------------------
+                | UPDATE STATUS PENGEMBALIAN
+                |--------------------------------------------------------------------------
+                */
+
+                $item->update([
+                    'status_validasi' => 'disetujui',
+                    'catatan_admin'   => $catatan,
+                ]);
+
+                /*
+                |--------------------------------------------------------------------------
+                | JIKA ADA DENDA
+                |--------------------------------------------------------------------------
+                */
+
+                if ($totalDenda > 0) {
+
+                    Denda::updateOrCreate(
+
+                        [
+                            'id_penyewaan' => $item->id_penyewaan
+                        ],
+
+                        [
+                            'jenis_kerusakan'      => $jenisKerusakan,
+                            'biaya_keterlambatan'  => $dendaTelat,
+                            'biaya_kerusakan'      => $biayaRusak,
+                            'total_denda'          => $totalDenda,
+                            'keterangan_kerusakan' => $catatan,
+                            'status_denda'         => 'belum_bayar',
+                        ]
+                    );
+
+                    $item->penyewaan->update([
+                        'status_sewa' => 'menunggu_pembayaran_denda'
                     ]);
 
-                    // SIMPAN KE TABEL DENDA
-                    if ($totalDenda > 0) {
-                        Denda::updateOrCreate(
-                            ['id_penyewaan' => $item->id_penyewaan],
-                            [
-                                'jenis_kerusakan'      => $jenisKerusakan,
-                                'biaya_keterlambatan'  => $dendaTelat,
-                                'biaya_kerusakan'      => $biayaRusak,
-                                'total_denda'          => $totalDenda,
-                                'keterangan_kerusakan' => $catatan,
-                                'status_denda'         => 'belum_bayar',
-                            ]
-                        );
+                } else {
 
-                        $item->penyewaan->update([
-                            'status_sewa' => 'menunggu_pembayaran_denda'
-                        ]);
-                    } else {
-                        $item->penyewaan->update([
-                            'status_sewa' => 'selesai'
-                        ]);
-                    }
+                    /*
+                    |--------------------------------------------------------------------------
+                    | TANPA DENDA
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $item->penyewaan->update([
+                        'status_sewa' => 'selesai'
+                    ]);
                 }
             }
 
             DB::commit();
-            return back()->with('success', 'Validasi pengembalian berhasil!');
+
+            return back()->with(
+                'success',
+                'Validasi pengembalian berhasil!'
+            );
 
         } catch (\Exception $e) {
+
             DB::rollBack();
-            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+
+            return back()->with(
+                'error',
+                'Terjadi kesalahan: ' . $e->getMessage()
+            );
         }
     }
 

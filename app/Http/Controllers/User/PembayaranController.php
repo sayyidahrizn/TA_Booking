@@ -185,38 +185,79 @@ class PembayaranController extends Controller
      */
     public function callback(Request $request)
     {
+        // 1. Validasi Signature Key (Keamanan)
+        $serverKey = config('services.midtrans.server_key');
+        $hashed = hash("sha512", $request->order_id . $request->status_code . $request->gross_amount . $serverKey);
+
+        if ($hashed !== $request->signature_key) {
+            return response()->json(['message' => 'Invalid signature'], 403);
+        }
+
         $orderId = $request->order_id;
+        $status = $request->transaction_status;
 
-        // Logika untuk Pembayaran Sewa
-        if (str_contains($orderId, 'PAY-')) {
-            $pembayaran = Pembayaran::where('kode_pembayaran', $orderId)->first();
-            if ($pembayaran) {
-                if (in_array($request->transaction_status, ['settlement', 'capture'])) {
-                    $pembayaran->update(['status_pembayaran' => 'berhasil', 'tanggal_bayar' => now()]);
-                } elseif (in_array($request->transaction_status, ['expire', 'cancel', 'deny'])) {
-                    $pembayaran->update(['status_pembayaran' => 'gagal']);
+        // 2. Logika Update Jika Berhasil (settlement / capture)
+        if (in_array($status, ['settlement', 'capture'])) {
+            
+            // JIKA PEMBAYARAN SEWA (PAY-)
+            if (str_contains($orderId, 'PAY-')) {
+                $pembayaran = Pembayaran::where('kode_pembayaran', $orderId)->first();
+                if ($pembayaran) {
+                    $pembayaran->update([
+                        'status_pembayaran' => 'berhasil',
+                        'tanggal_bayar' => now()
+                    ]);
                 }
             }
-        }
 
-        // Logika untuk Pembayaran Denda
-        if (str_contains($orderId, 'DENDA-')) {
-            $explode = explode('-', $orderId);
-            $idDenda = $explode[1] ?? null;
-            $denda = Denda::with('penyewaan')->find($idDenda);
-
-            if ($denda) {
-                if (in_array($request->transaction_status, ['settlement', 'capture'])) {
+            // JIKA PEMBAYARAN DENDA (DENDA-)
+            if (str_contains($orderId, 'DENDA-')) {
+                $explode = explode('-', $orderId);
+                $idDenda = $explode[1];
+                $denda = Denda::find($idDenda);
+                if ($denda) {
                     $denda->update(['status_denda' => 'lunas']);
-                    if ($denda->penyewaan) {
-                        $denda->penyewaan->update(['status_sewa' => 'selesai']);
-                    }
-                } elseif (in_array($request->transaction_status, ['expire', 'cancel', 'deny'])) {
-                    $denda->update(['status_denda' => 'belum_bayar']);
+                    // Update semua item penyewaan yang terkait denda tersebut jadi selesai
+                    Penyewaan::where('id_penyewaan', $denda->id_penyewaan)
+                            ->update(['status_sewa' => 'selesai']);
                 }
+            }
+        } 
+        
+        // 3. Logika Jika Gagal / Expired
+        elseif (in_array($status, ['expire', 'cancel', 'deny'])) {
+            if (str_contains($orderId, 'PAY-')) {
+                Pembayaran::where('kode_pembayaran', $orderId)->update(['status_pembayaran' => 'gagal']);
             }
         }
 
-        return response()->json(['status' => 'ok']);
+        return response()->json(['status' => 'success']);
+    }
+    public function cekStatusManual($type, $idOrKode)
+    {
+        Config::$serverKey = config('services.midtrans.server_key');
+        
+        try {
+            // Ambil status terbaru dari server Midtrans
+            $status = \Midtrans\Transaction::status($idOrKode);
+            
+            if (in_array($status->transaction_status, ['settlement', 'capture'])) {
+                if ($type == 'denda') {
+                    $denda = Denda::where('kode_pembayaran', $idOrKode)->first();
+                    if ($denda) {
+                        $denda->update(['status_denda' => 'lunas']);
+                        Penyewaan::where('id_penyewaan', $denda->id_penyewaan)->update(['status_sewa' => 'selesai']);
+                    }
+                } else {
+                    Pembayaran::where('kode_pembayaran', $idOrKode)->update(['status_pembayaran' => 'berhasil', 'tanggal_bayar' => now()]);
+                }
+                return back()->with('success', 'Status berhasil diperbarui dari Midtrans!');
+            }
+
+            return back()->with('info', 'Status saat ini: ' . $status->transaction_status);
+            
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal mengecek: ' . $e->getMessage());
+        }
     }
 }

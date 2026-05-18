@@ -18,7 +18,10 @@ class LaporanController extends Controller
         $startDate = $request->start_date;
         $endDate   = $request->end_date;
 
-        // DEFAULT SEMUA
+        // =========================================
+        // DEFAULT FILTER
+        // =========================================
+
         $jenis  = $request->jenis ?? 'semua';
         $status = $request->status;
 
@@ -28,7 +31,8 @@ class LaporanController extends Controller
 
         $query = Penyewaan::with([
             'user',
-            'fasilitas'
+            'fasilitas',
+            'denda'
         ]);
 
         // =========================================
@@ -44,22 +48,53 @@ class LaporanController extends Controller
         }
 
         // =========================================
+        // FILTER KATEGORI
+        // =========================================
+
+        if ($jenis == 'denda') {
+
+            // HANYA YANG PUNYA DENDA
+            $query->whereHas('denda');
+        }
+
+        // =========================================
         // FILTER STATUS
         // =========================================
 
         if ($status) {
 
-            if ($jenis == 'penyewaan') {
+            // =====================================
+            // KHUSUS KATEGORI DENDA
+            // =====================================
+
+            if ($jenis == 'denda') {
+
+                if ($status == 'denda_belum_bayar') {
+
+                    $query->whereHas('denda', function ($q) {
+
+                        $q->where('status_pembayaran', '!=', 'lunas');
+
+                    });
+
+                } elseif ($status == 'denda_lunas') {
+
+                    $query->whereHas('denda', function ($q) {
+
+                        $q->where('status_pembayaran', 'lunas');
+
+                    });
+                }
+
+            }
+
+            // =====================================
+            // KATEGORI LAIN = STATUS SEWA
+            // =====================================
+
+            else {
 
                 $query->where('status_sewa', $status);
-
-            } elseif ($jenis == 'pembayaran') {
-
-                $query->where('status_pembayaran', $status);
-
-            } elseif ($jenis == 'pengembalian') {
-
-                $query->where('status_pengembalian', $status);
             }
         }
 
@@ -69,14 +104,12 @@ class LaporanController extends Controller
 
         if ($isExport) {
 
-            // UNTUK PDF & EXCEL
             $detailLaporan = $query
                 ->latest()
                 ->get();
 
         } else {
 
-            // UNTUK HALAMAN ADMIN
             $detailLaporan = $query
                 ->latest()
                 ->paginate(10)
@@ -137,7 +170,6 @@ class LaporanController extends Controller
 
     public function downloadPDF(Request $request)
     {
-        // TRUE = AMBIL SEMUA DATA TANPA PAGINATION
         $data = $this->getLaporanData($request, true);
 
         $pdf = Pdf::loadView(
@@ -161,7 +193,6 @@ class LaporanController extends Controller
 
     public function downloadExcel(Request $request)
     {
-        // TRUE = AMBIL SEMUA DATA TANPA PAGINATION
         $data = $this->getLaporanData($request, true);
 
         $fileName =
@@ -183,7 +214,7 @@ class LaporanController extends Controller
 
             $file = fopen('php://output', 'w');
 
-            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
             $delimiter = ";";
 
@@ -209,15 +240,49 @@ class LaporanController extends Controller
                 'KODE BOOKING',
                 'PENYEWA',
                 'FASILITAS',
-                'JUMLAH',
-                'TOTAL',
+                'JUMLAH SEWA',
+                'TOTAL HARGA',
                 'STATUS SEWA',
-                'STATUS PEMBAYARAN',
-                'STATUS PENGEMBALIAN',
+                'KONDISI BARANG',
+                'JUMLAH DENDA',
+                'ALASAN DENDA',
+                'CATATAN DENDA',
+                'STATUS PEMBAYARAN DENDA',
                 'TANGGAL'
             ], $delimiter);
 
             foreach ($data['detailLaporan'] as $key => $item) {
+
+                $statusSewa = ucfirst($item->status_sewa ?? '-');
+
+                $kondisiDenda = '-';
+                $jumlahDenda  = '-';
+                $alasanDenda  = '-';
+                $catatanDenda = '-';
+                $statusDenda  = '-';
+
+                if ($item->denda) {
+
+                    $kondisiDenda =
+                        ucfirst($item->denda->kondisi_barang ?? '-');
+
+                    $jumlahDenda =
+                        'Rp ' . number_format(
+                            $item->denda->jumlah_denda ?? 0,
+                            0,
+                            ',',
+                            '.'
+                        );
+
+                    $alasanDenda =
+                        $item->denda->alasan_denda ?? '-';
+
+                    $catatanDenda =
+                        $item->denda->catatan ?? '-';
+
+                    $statusDenda =
+                        ucfirst($item->denda->status_pembayaran ?? '-');
+                }
 
                 fputcsv($file, [
 
@@ -238,11 +303,17 @@ class LaporanController extends Controller
                         '.'
                     ),
 
-                    ucfirst($item->status_sewa ?? '-'),
+                    $statusSewa,
 
-                    ucfirst($item->status_pembayaran ?? '-'),
+                    $kondisiDenda,
 
-                    ucfirst($item->status_pengembalian ?? '-'),
+                    $jumlahDenda,
+
+                    $alasanDenda,
+
+                    $catatanDenda,
+
+                    $statusDenda,
 
                     $item->created_at->format('d-m-Y')
 

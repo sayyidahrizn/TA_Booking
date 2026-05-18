@@ -226,7 +226,10 @@ class PengembalianController extends Controller
 
             try {
                 $snapToken = \Midtrans\Snap::getSnapToken($params);
-                $denda->update(['snap_token' => $snapToken]);
+                $denda->update([
+                    'snap_token' => $snapToken,
+                    'kode_pembayaran' => $orderId
+                ]);
             } catch (\Exception $e) {
                 return back()->with('error', 'Gagal memproses pembayaran: ' . $e->getMessage());
             }

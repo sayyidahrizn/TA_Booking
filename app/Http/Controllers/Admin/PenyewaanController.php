@@ -217,6 +217,18 @@ class PenyewaanController extends Controller
             $dataGrafik[] = $pendapatanBulanan[$i] ?? 0;
         }
 
+
+        $disetujuiSelesai = Penyewaan::whereIn('status_sewa', [
+            'disetujui',
+            'selesai'
+        ])->count();
+
+        $dibatalkan = Penyewaan::whereIn('status_sewa', [
+            'batal',
+            'dibatalkan_user'
+        ])->count();
+
+
         $penyewaan = Penyewaan::with([
         'user',
         'fasilitas',
@@ -264,8 +276,10 @@ class PenyewaanController extends Controller
             'menungguPengembalian',
             'validasiPengembalian',
             'menungguDenda',
+            'dataGrafik',
             'penyewaan',
-            'dataGrafik'
+            'disetujuiSelesai',
+            'dibatalkan'
         ));
     }
 

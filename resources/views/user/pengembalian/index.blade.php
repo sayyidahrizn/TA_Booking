@@ -11,6 +11,10 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <style>
+    * {
+        box-sizing: border-box;
+    }
+
     .page-title {
         font-size: 2.5rem;
         font-weight: 800;
@@ -25,9 +29,13 @@
         border: none;
         padding: 25px;
         margin-bottom: 30px;
+        width: 100%;
     }
 
-    /* Section Denda */
+    /* ========================= */
+    /* SECTION DENDA */
+    /* ========================= */
+
     .card-denda {
         border: 2px solid #feb2b2;
         background-color: #fff5f5;
@@ -43,26 +51,34 @@
         transition: 0.3s;
         text-decoration: none;
         display: inline-block;
+        text-align: center;
     }
 
     .btn-bayar-denda:hover {
         background-color: #c53030;
-        transform: scale(1.05);
+        transform: scale(1.03);
         color: white;
     }
 
+    /* ========================= */
+    /* TABLE */
+    /* ========================= */
+
     .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
         border-radius: 15px;
-        overflow: hidden;
-        border: none !important;
-        box-shadow: 0 0 0 1px #e2e8f0; /* Soft border substitute */
+        -webkit-overflow-scrolling: touch;
+        border: 1px solid #e2e8f0;
+        background: white;
     }
 
     .table-pengembalian {
         width: 100%;
+        min-width: 1150px;
         border-collapse: separate;
         border-spacing: 0;
-        border: none !important;
     }
 
     .table-pengembalian thead th {
@@ -76,6 +92,7 @@
         border-bottom: 2px solid #edf2f7 !important;
         border-top: none !important;
         text-align: center;
+        white-space: nowrap;
     }
 
     .table-pengembalian td {
@@ -85,36 +102,36 @@
         text-align: center;
         color: #2d3748;
         font-weight: 500;
+        white-space: nowrap;
     }
+
+    /* ========================= */
+    /* STATUS */
+    /* ========================= */
 
     .text-lunas {
         color: #059669;
         font-weight: 800;
-        font-size: 1.1rem;
+        font-size: 1rem;
     }
 
     .text-pending {
         color: #d97706;
         font-weight: 800;
-        font-size: 1.1rem;
+        font-size: 1rem;
     }
 
     .fasilitas-name {
         text-align: left !important;
         font-weight: 700;
         text-transform: capitalize;
+        min-width: 180px;
     }
 
     .form-check-input {
-        width: 1.25em;
-        height: 1.25em;
+        width: 1.2em;
+        height: 1.2em;
         cursor: pointer;
-        border: 1px solid #2d3748;
-    }
-
-    .table-responsive {
-        border-radius: 8px;
-        overflow: hidden;
         border: 1px solid #2d3748;
     }
 
@@ -132,13 +149,164 @@
         line-height: 1.5;
     }
 
+    /* ========================= */
+    /* FORM */
+    /* ========================= */
+
+    .form-control-sm {
+        min-width: 180px;
+    }
+
+    .btn {
+        border-radius: 8px !important;
+    }
+
+    /* ========================= */
+    /* TABLE DENDA */
+    /* ========================= */
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table th,
+    .table td {
+        vertical-align: middle !important;
+        white-space: nowrap;
+    }
+
+    /* ========================= */
+    /* RESPONSIVE TABLET */
+    /* ========================= */
+
     @media (max-width: 992px) {
+
+        .container.py-5 {
+            padding-top: 20px !important;
+            padding-bottom: 20px !important;
+        }
+
         .page-title {
-            font-size: 1.8rem;
+            font-size: 2rem;
         }
 
         .card-custom {
-            padding: 15px;
+            padding: 18px;
+            border-radius: 16px;
+        }
+
+        .table-pengembalian {
+            min-width: 1000px;
+        }
+
+        .table-pengembalian thead th {
+            font-size: 0.72rem;
+            padding: 12px;
+        }
+
+        .table-pengembalian td {
+            font-size: 0.82rem;
+            padding: 10px;
+        }
+
+        .btn,
+        .btn-sm,
+        .btn-bayar-denda {
+            font-size: 0.78rem !important;
+            padding: 8px 12px !important;
+        }
+
+        .form-control-sm {
+            min-width: 160px;
+            font-size: 0.75rem;
+        }
+
+        .badge-custom,
+        .badge {
+            font-size: 0.72rem !important;
+        }
+
+        .info-jadwal {
+            font-size: 0.72rem;
+        }
+    }
+
+    /* ========================= */
+    /* RESPONSIVE MOBILE */
+    /* ========================= */
+
+    @media (max-width: 576px) {
+
+        .container.py-5 {
+            padding-left: 10px !important;
+            padding-right: 10px !important;
+        }
+
+        h1 {
+            font-size: 1.5rem !important;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+        }
+
+        .card-custom {
+            padding: 14px;
+            border-radius: 14px;
+        }
+
+        .table-pengembalian {
+            min-width: 950px;
+        }
+
+        .table-pengembalian thead th {
+            font-size: 0.68rem;
+            padding: 10px 8px;
+        }
+
+        .table-pengembalian td {
+            font-size: 0.72rem;
+            padding: 8px;
+        }
+
+        .text-lunas,
+        .text-pending {
+            font-size: 0.85rem;
+        }
+
+        .badge-custom,
+        .badge {
+            font-size: 0.65rem !important;
+            padding: 6px 8px !important;
+        }
+
+        .info-jadwal {
+            font-size: 0.68rem;
+        }
+
+        .btn,
+        .btn-sm,
+        .btn-bayar-denda {
+            width: 100%;
+            display: block;
+            margin-top: 5px;
+            font-size: 0.72rem !important;
+            padding: 8px 10px !important;
+        }
+
+        .form-control-sm {
+            width: 100%;
+            min-width: 140px;
+            font-size: 0.7rem;
+        }
+
+        .fasilitas-name {
+            min-width: 160px;
+        }
+
+        .form-check-input {
+            width: 1em;
+            height: 1em;
         }
     }
 </style>
