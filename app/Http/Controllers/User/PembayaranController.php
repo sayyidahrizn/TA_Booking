@@ -7,9 +7,12 @@ use Illuminate\Http\Request;
 use App\Models\Penyewaan;
 use App\Models\Pembayaran;
 use App\Models\Denda;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 use Midtrans\Config;
 use Midtrans\Snap;
+use App\Services\FonnteService;
 
 class PembayaranController extends Controller
 {
@@ -201,12 +204,20 @@ class PembayaranController extends Controller
             
             // JIKA PEMBAYARAN SEWA (PAY-)
             if (str_contains($orderId, 'PAY-')) {
-                $pembayaran = Pembayaran::where('kode_pembayaran', $orderId)->first();
+                $pembayaran = Pembayaran::with('penyewaan.user')->where('kode_pembayaran', $orderId)->first();
+            
                 if ($pembayaran) {
                     $pembayaran->update([
                         'status_pembayaran' => 'berhasil',
                         'tanggal_bayar' => now()
                     ]);
+
+                    // KIRIM WA
+                    $user = $pembayaran->penyewaan->user;
+                    $jenis = strtoupper($pembayaran->jenis_pembayaran); // DP atau PELUNASAN
+                    $pesan = "Halo *{$user->name}*,\n\nPembayaran *$jenis* Anda telah kami terima.\nTotal: Rp " . number_format($pembayaran->jumlah_bayar) . "\nStatus: *BERHASIL*.";
+                    
+                    FonnteService::send($user->no_hp, $pesan);
                 }
             }
 
@@ -214,12 +225,17 @@ class PembayaranController extends Controller
             if (str_contains($orderId, 'DENDA-')) {
                 $explode = explode('-', $orderId);
                 $idDenda = $explode[1];
-                $denda = Denda::find($idDenda);
+                $denda = Denda::with('penyewaan.user')->find($idDenda);
+                
                 if ($denda) {
                     $denda->update(['status_denda' => 'lunas']);
-                    // Update semua item penyewaan yang terkait denda tersebut jadi selesai
-                    Penyewaan::where('id_penyewaan', $denda->id_penyewaan)
-                            ->update(['status_sewa' => 'selesai']);
+                    Penyewaan::where('id_penyewaan', $denda->id_penyewaan)->update(['status_sewa' => 'selesai']);
+
+                    // KIRIM WA DENDA
+                    $user = $denda->penyewaan->user;
+                    $pesan = "Halo *{$user->name}*,\n\nPembayaran *DENDA* Anda telah lunas. Terima kasih telah menyelesaikan tanggung jawab Anda.";
+                    
+                    FonnteService::send($user->no_hp, $pesan);
                 }
             }
         } 

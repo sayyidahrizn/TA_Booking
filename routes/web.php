@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\PengembalianController as AdminPengembalianContro
 use App\Http\Controllers\User\PenyewaanController as UserPenyewaan;
 use App\Http\Controllers\Admin\PenyewaanController as AdminPenyewaan;
 use App\Http\Controllers\User\PembayaranController;
+use Illuminate\Support\Facades\Http;
 
 /*
 |--------------------------------------------------------------------------
@@ -142,3 +143,22 @@ Route::prefix('admin')->middleware(['auth', 'isAdmin'])->group(function () {
 Route::post('/midtrans/callback',[PembayaranController::class, 'callback'])->name('midtrans.callback');
 
 require __DIR__ . '/auth.php';
+
+
+Route::get('/test-wa', function () {
+
+    $response = Http::timeout(30)
+        ->withHeaders([
+            'Authorization' => config('services.fonnte.token'),
+        ])
+        ->asForm()
+        ->post('https://api.fonnte.com/send', [
+            'target' => '6282333227310',
+            'message' => 'CAPEK GA KENEK',
+        ]);
+
+    return [
+        'status' => $response->status(),
+        'body' => $response->body(),
+    ];
+});
