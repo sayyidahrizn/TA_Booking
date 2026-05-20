@@ -152,16 +152,21 @@
                     | STATUS PEMBAYARAN
                     |--------------------------------------------------------------------------
                     */
-                    $pembayaran = $group->flatMap->pembayaran->first();
+                    $allPembayaran = $group->flatMap->pembayaran;
 
-                    $statusPembayaran = 'Belum Dibayar';
+                    $jenisPembayaran = '-';
 
-                    if ($pembayaran) {
-                        if (in_array($pembayaran->status_pembayaran, ['berhasil', 'diverifikasi'])) {
-                            $statusPembayaran = 'Sudah Dibayar';
-                        } elseif ($pembayaran->status_pembayaran == 'pending') {
-                            $statusPembayaran = 'Menunggu';
-                        }
+                    if ($allPembayaran->count() > 0) {
+
+                        $jenisList = $allPembayaran
+                            ->pluck('jenis_pembayaran')
+                            ->filter()
+                            ->unique()
+                            ->map(function($item){
+                                return strtoupper($item);
+                            });
+
+                        $jenisPembayaran = $jenisList->implode(', ');
                     }
 
                     /*
@@ -180,14 +185,24 @@
                     | STATUS DENDA
                     |--------------------------------------------------------------------------
                     */
-                    $allDenda = $group->flatMap->denda;
+                    $allDenda = $group
+                        ->map(function ($item) {
+                            return $item->denda;
+                        })
+                        ->filter();
 
-                    $totalDenda = $allDenda->sum('jumlah_denda');
+                    $totalDenda = $allDenda->sum('total_denda');
 
-                    $statusDenda = 'Tidak Ada';
+                    $statusDenda = 'tidak ada denda';
 
                     if ($totalDenda > 0) {
-                        $statusDenda = $allDenda->contains('status_pembayaran', 'lunas')
+
+                        $semuaLunas = $allDenda
+                            ->every(function ($denda) {
+                                return $denda->status_denda == 'lunas';
+                            });
+
+                        $statusDenda = $semuaLunas
                             ? 'Lunas'
                             : 'Belum Bayar';
                     }
@@ -354,7 +369,7 @@
                             font-weight: 700;
                             text-transform: uppercase;
                         ">
-                            {{ $statusPembayaran }}
+                            {{ $jenisPembayaran }}
                         </span>
                     </td>
 
@@ -393,10 +408,24 @@
                             text-transform: uppercase;
                         ">
                             @if($totalDenda > 0)
-                                Rp {{ number_format($totalDenda, 0, ',', '.') }} <br>
-                                <small>{{ $statusDenda }}</small>
+
+                                <div style="font-weight:700;">
+                                    Rp {{ number_format($totalDenda, 0, ',', '.') }}
+                                </div>
+
+                                <small style="
+                                    display:block;
+                                    margin-top:4px;
+                                    color: {{ $statusDenda == 'Lunas' ? '#15803d' : '#dc2626' }};
+                                    font-weight:700;
+                                ">
+                                    {{ $statusDenda }}
+                                </small>
+
                             @else
-                                {{ $statusDenda }}
+
+                                Tidak Ada Denda
+
                             @endif
                         </span>
                     </td>

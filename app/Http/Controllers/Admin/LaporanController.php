@@ -188,6 +188,55 @@ class LaporanController extends Controller
     }
 
     // =========================================
+    // HALAMAN LAPORAN PEMASUKAN SEWA
+    // =========================================
+    public function sewa(Request $request)
+    {
+        // 1. Paksa jenis menjadi 'sewa'
+        $request->merge(['jenis' => 'sewa']);
+        
+        // 2. Ambil data laporan (pagination & detail)
+        $data = $this->getLaporanData($request);
+        
+        // 3. DEFINISIKAN VARIABEL DI SINI (Untuk menghilangkan garis merah)
+        $startDate = $request->start_date ?? '1970-01-01';
+        $endDate   = $request->end_date ?? now()->format('Y-m-d');
+
+        // 4. Hitung total pemasukan menggunakan variabel yang sudah didefinisikan
+        $data['totalPemasukan'] = \App\Models\Penyewaan::whereBetween('created_at', [
+                $startDate . ' 00:00:00',
+                $endDate . ' 23:59:59'
+            ])
+            ->sum('total_harga');
+
+        return view('admin.laporan.sewa', $data);
+    }
+
+    // =========================================
+    // HALAMAN LAPORAN PEMASUKAN DENDA
+    // =========================================
+    public function denda(Request $request)
+    {
+        // Paksa jenis menjadi denda agar masuk ke filter query denda
+        $request->merge(['jenis' => 'denda']);
+        
+        $data = $this->getLaporanData($request);
+        
+        // Hitung total denda secara dinamis dari tabel relasi denda
+        $data['totalDenda'] = \App\Models\Penyewaan::whereHas('denda')
+            ->whereBetween('created_at', [
+                ($request->start_date ?? '1970-01-01') . ' 00:00:00',
+                ($request->end_date ?? now()->format('Y-m-d')) . ' 23:59:59'
+            ])
+            ->get()
+            ->sum(function($item) {
+                return $item->denda->jumlah_denda ?? 0;
+            });
+
+        return view('admin.laporan.denda', $data);
+    }
+
+    // =========================================
     // DOWNLOAD EXCEL / CSV
     // =========================================
 

@@ -43,18 +43,23 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
+        // Perbaikan: Validasi harus menggunakan 'nama' sesuai atribut name di form HTML
         $request->validate([
             'nik'      => 'required|numeric|digits:16|unique:users,nik',
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users',
+            'nama'     => 'required|string|max:100', // Sesuai form: name="nama"
+            'email'    => 'required|email|max:100|unique:users,email',
+            'no_hp'    => 'required|string|max:20',
+            'alamat'   => 'required|string',
             'role'     => 'required|in:kaur,penyewa',
-            'password' => 'required|min:6'
+            'password' => 'required|min:6|confirmed'
         ]);
 
         User::create([
             'nik'      => $request->nik,
-            'name'     => $request->name,
+            'name'     => $request->nama, // Mapping input 'nama' ke kolom 'name'
             'email'    => $request->email,
+            'no_hp'    => $request->no_hp,
+            'alamat'   => $request->alamat,
             'role'     => $request->role,
             'password' => Hash::make($request->password)
         ]);
@@ -73,17 +78,22 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
 
+        // Perbaikan: Validasi untuk edit juga harus konsisten menggunakan 'nama'
         $request->validate([
             'nik'      => 'required|numeric|digits:16|unique:users,nik,' . $id,
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users,email,' . $id,
+            'nama'     => 'required|string|max:100',
+            'email'    => 'required|email|max:100|unique:users,email,' . $id,
+            'no_hp'    => 'required|string|max:20',
+            'alamat'   => 'required|string',
             'role'     => 'required|in:kaur,penyewa',
-            'password' => 'nullable|min:6'
+            'password' => 'nullable|min:6|confirmed' // Password opsional saat edit
         ]);
 
         $user->nik = $request->nik;
-        $user->name = $request->name;
+        $user->name = $request->nama; // Mapping input 'nama' ke kolom 'name'
         $user->email = $request->email;
+        $user->no_hp = $request->no_hp;
+        $user->alamat = $request->alamat;
         $user->role = $request->role;
 
         if ($request->filled('password')) {

@@ -23,11 +23,11 @@
             min-height: 100vh;
         }
 
-        /* ================= SIDEBAR (DIPERBAIKI) ================= */
+        /* ================= SIDEBAR ================= */
         .sidebar {
             width: 220px;
             height: 100vh;
-            background-color: #111827; /* Warna biru sesuai desain sebelumnya */
+            background-color: #111827 !important;
             color: #ffffff;
             position: fixed;
             left: 0;
@@ -68,9 +68,10 @@
         }
 
         /* Gaya Link Navigasi */
-        .sidebar a {
+        .sidebar a, .dropdown-btn {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             width: 100%;
             height: 45px;
             padding: 0 20px;
@@ -79,21 +80,54 @@
             font-size: 14px;
             transition: all 0.3s;
             border-left: 4px solid transparent;
+            background: none;
+            border: none;
+            cursor: pointer;
+            text-align: left;
+            font-family: inherit;
         }
 
         /* Efek Hover */
-        .sidebar a:hover {
+        .sidebar a:hover, .dropdown-btn:hover {
             background-color: rgba(255,255,255,0.1);
             color: white;
             padding-left: 25px;
         }
 
         /* Efek Active (Halaman Saat Ini) */
-        .sidebar a.active {
+        .sidebar a.active, .dropdown-btn.active {
             background-color: #1f2937;
             color: white !important;
             font-weight: bold;
             border-left: 4px solid #38bdf8;
+        }
+
+        /* ================= DROPDOWN LAPORAN ================= */
+        .dropdown-container {
+            display: none;
+            background-color: #1f2937;
+            padding-left: 15px;
+        }
+
+        .dropdown-container a {
+            height: 40px;
+            font-size: 13px;
+            border-left: 2px solid transparent;
+        }
+
+        .dropdown-container a.active {
+            border-left: 2px solid #38bdf8;
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .dropdown-btn i.fa-chevron-down {
+            font-size: 11px;
+            transition: transform 0.3s;
+        }
+
+        /* Rotasi panah saat dropdown terbuka */
+        .dropdown-btn.active i.fa-chevron-down {
+            transform: rotate(180deg);
         }
 
         /* Container Logout di Bawah */
@@ -123,7 +157,7 @@
         }
 
         .logout-btn:hover {
-            background-color: #ef4444; /* Warna merah saat hover logout */
+            background-color: #ef4444;
             color: white;
         }
 
@@ -230,7 +264,25 @@
             <a href="{{ route('admin.penyewaan.index') }}" class="{{ request()->is('admin/penyewaan*') ? 'active' : '' }}">Kelola Penyewaan</a>
             <a href="{{ route('admin.pembayaran.index') }}" class="{{ request()->is('admin/pembayaran*') ? 'active' : '' }}">Kelola Pembayaran</a>
             <a href="{{ route('admin.pengembalian') }}" class="{{ request()->is('admin/pengembalian*') ? 'active' : '' }}">Kelola Pengembalian</a>
-            <a href="{{ route('admin.laporan') }}" class="{{ request()->is('admin/laporan*') ? 'active' : '' }}">Laporan</a>
+            
+            <!-- DROPDOWN LAPORAN -->
+            <button class="dropdown-btn {{ request()->is('admin/laporan*') ? 'active' : '' }}" id="laporanBtn">
+                <span>Laporan</span>
+                <i class="fa-solid fa-chevron-down"></i>
+            </button>
+            <div class="dropdown-container" id="laporanDropdown" 
+                style="{{ request()->is('admin/laporan*') ? 'display: block;' : 'display: none;' }}">
+                
+                <a href="{{ route('admin.laporan.sewa') }}" 
+                class="{{ request()->is('admin/laporan/sewa*') ? 'active' : '' }}">
+                Pemasukan Sewa
+                </a>
+                
+                <a href="{{ route('admin.laporan.denda') }}" 
+                class="{{ request()->is('admin/laporan/denda*') ? 'active' : '' }}">
+                Pemasukan Denda
+                </a>
+            </div>
         </div>
 
         <div class="sidebar-footer">
@@ -267,6 +319,19 @@
     </div>
 
 </div>
+
+<!-- JAVASCRIPT UNTUK DROPDOWN INTERAKTIF -->
+<script>
+    document.getElementById('laporanBtn').addEventListener('click', function() {
+        this.classList.toggle('active');
+        var dropdownContent = document.getElementById('laporanDropdown');
+        if (dropdownContent.style.display === 'block') {
+            dropdownContent.style.display = 'none';
+        } else {
+            dropdownContent.style.display = 'block';
+        }
+    });
+</script>
 
 </body>
 </html>

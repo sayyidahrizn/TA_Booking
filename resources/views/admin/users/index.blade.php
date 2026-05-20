@@ -196,6 +196,7 @@
                 <th class="text-left">Nama</th>
                 <th class="text-left">NIK</th>
                 <th class="text-left">Email</th>
+                <th class="text-left">No. HP</th> {{-- Kolom Baru --}}
                 <th class="text-center">Role</th>
                 <th class="text-center">Dibuat</th>
                 <th class="text-center">Aksi</th>
@@ -212,6 +213,7 @@
                     {{ $u->nik ?? '-' }}
                 </td>
                 <td class="text-left">{{ $u->email }}</td>
+                <td class="text-left">{{ $u->no_hp ?? '-' }}</td> {{-- Data No. HP --}}
                 <td class="text-center">
                     @if($u->role == 'kaur')
                         <span class="badge-admin">Admin</span>
@@ -238,7 +240,7 @@
             </tr>
             @empty
             <tr>
-                <td colspan="7" class="text-center">Data user belum tersedia</td>
+                <td colspan="8" class="text-center">Data user belum tersedia</td> {{-- Colspan diubah menjadi 8 --}}
             </tr>
             @endforelse
         </tbody>

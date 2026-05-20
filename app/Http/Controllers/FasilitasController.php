@@ -60,6 +60,7 @@ class FasilitasController extends Controller
             'nama_fasilitas' => 'required',
             'harga_sewa' => 'required|numeric',
             'jumlah' => 'required|integer',
+            'harga_benda' => 'required|numeric',
             'gambar.*' => 'image|mimes:jpeg,png,jpg|max:2048'
         ]);
 
@@ -68,6 +69,7 @@ class FasilitasController extends Controller
         $fasilitas->deskripsi = $request->deskripsi;
         $fasilitas->jumlah = $request->jumlah;
         $fasilitas->harga_sewa = $request->harga_sewa;
+        $fasilitas->harga_benda = $request->harga_benda;
         $fasilitas->status_fasilitas = $request->status_fasilitas;
         $fasilitas->save();
 
@@ -99,6 +101,7 @@ class FasilitasController extends Controller
         $fasilitas->deskripsi = $request->deskripsi;
         $fasilitas->jumlah = $request->jumlah;
         $fasilitas->harga_sewa = $request->harga_sewa;
+        $fasilitas->harga_benda = $request->harga_benda;
         $fasilitas->status_fasilitas = $request->status_fasilitas;
         $fasilitas->save();
 

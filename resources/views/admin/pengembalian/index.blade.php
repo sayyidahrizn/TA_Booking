@@ -462,10 +462,16 @@
                                         @elseif($denda->status_denda == 'belum_bayar')
 
                                             <span class="badge-status bg-warning-soft">
-                                                Menunggu Bayar
+                                                Belum Dibayar
                                             </span>
 
-                                        @else
+                                        @elseif($denda->status_denda == 'pending')
+
+                                            <span class="badge-status bg-secondary-soft">
+                                                Menunggu Konfirmasi
+                                            </span>
+
+                                        @elseif($denda->status_denda == 'lunas')
 
                                             <span class="badge-status bg-success-soft">
                                                 Lunas
@@ -495,19 +501,28 @@
 
                                             <button
                                                 type="button"
+                                                class="btn-action btn-disabled"
+                                            >
+                                                Menunggu Pembayaran User
+                                            </button>
+
+                                        @elseif($denda->status_denda == 'pending')
+
+                                            <button
+                                                type="button"
                                                 class="btn-action btn-success-custom"
                                                 onclick="konfirmasiLunas({{ $denda->id_denda }})"
                                             >
-                                                Konfirmasi Lunas
+                                                Konfirmasi Pembayaran
                                             </button>
 
-                                        @else
+                                        @elseif($denda->status_denda == 'lunas')
 
                                             <button
                                                 type="button"
                                                 class="btn-action btn-disabled"
                                             >
-                                                Sudah Divalidasi
+                                                Sudah Lunas
                                             </button>
 
                                         @endif

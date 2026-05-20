@@ -7,7 +7,7 @@
 <style>
     .content-padding { padding: 10px; }
     .profile-grid { display: grid; grid-template-columns: 300px 1fr; gap: 30px; max-width: 1100px; margin: 0 auto; }
-    .card { background: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); padding: 30px; }
+    .profile-section-card { background: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); padding: 30px; }
     .profile-card-static { text-align: center; }
     .main-avatar { width: 120px; height: 120px; border-radius: 50%; margin-bottom: 20px; border: 4px solid #f1f5f9; object-fit: cover; }
     .form-label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px; color: #475569; }

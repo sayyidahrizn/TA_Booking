@@ -111,7 +111,7 @@ class PengembalianController extends Controller
                 } elseif ($jenisKerusakan == 'berat') {
 
                     $biayaRusak =
-                        $item->penyewaan->fasilitas->harga ?? 0;
+                        $item->penyewaan->fasilitas->harga_benda ?? 0;
                 }
 
                 /*
@@ -199,19 +199,58 @@ class PengembalianController extends Controller
     public function konfirmasiPembayaran($id)
     {
         DB::beginTransaction();
+
         try {
-            $denda = Denda::with('penyewaan')->findOrFail($id);
-            $denda->update(['status_denda' => 'lunas']);
+
+            /*
+            |--------------------------------------------------------------------------
+            | AMBIL DATA DENDA
+            |--------------------------------------------------------------------------
+            */
+
+            $denda = Denda::with('penyewaan')
+                ->findOrFail($id);
+
+            /*
+            |--------------------------------------------------------------------------
+            | UPDATE STATUS DENDA
+            |--------------------------------------------------------------------------
+            | Admin sudah menerima uang tunai
+            |
+            */
+
+            $denda->update([
+                'status_denda' => 'lunas'
+            ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | UPDATE STATUS PENYEWAAN
+            |--------------------------------------------------------------------------
+            */
 
             if ($denda->penyewaan) {
-                $denda->penyewaan->update(['status_sewa' => 'selesai']);
+
+                $denda->penyewaan->update([
+                    'status_sewa' => 'selesai'
+                ]);
             }
 
             DB::commit();
-            return back()->with('success', 'Pembayaran denda berhasil dikonfirmasi!');
+
+            return back()->with(
+                'success',
+                'Pembayaran denda berhasil dikonfirmasi!'
+            );
+
         } catch (\Exception $e) {
+
             DB::rollBack();
-            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+
+            return back()->with(
+                'error',
+                'Terjadi kesalahan: ' . $e->getMessage()
+            );
         }
     }
 }

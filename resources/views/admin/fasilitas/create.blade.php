@@ -48,10 +48,11 @@
     }
 
     .error-text {
-        color: red;
-        font-size: 13px;
+        color: #ef4444;
+        font-size: 12px;
         margin-top: 5px;
         display: none;
+        font-weight: 500;
     }
 
     .btn-submit {
@@ -62,6 +63,7 @@
         border-radius: 4px;
         cursor: pointer;
         font-size: 14px;
+        font-weight: 600;
     }
 
     .btn-submit:hover {
@@ -72,9 +74,9 @@
         margin-left: 10px;
         text-decoration: none;
         color: #374151;
+        font-size: 14px;
     }
 
-    /* Preview Gambar */
     #preview_gambar img {
         max-width: 120px;
         margin-right: 10px;
@@ -92,27 +94,34 @@
 
         <div class="form-group">
             <label>Nama Fasilitas</label>
-            <input type="text" name="nama_fasilitas" required>
+            <input type="text" name="nama_fasilitas" placeholder="Contoh: Gedung Serbaguna" required>
         </div>
 
         <div class="form-group">
             <label>Deskripsi</label>
-            <textarea name="deskripsi"></textarea>
+            <textarea name="deskripsi" placeholder="Jelaskan detail fasilitas..."></textarea>
         </div>
 
         <div class="form-group">
-            <label>Jumlah</label>
+            <label>Jumlah Unit</label>
             <input type="number" name="jumlah" min="1" value="1" required>
-            <small>Tentukan jumlah stok/unit (meja, kursi, dll)</small>
+            <small style="color: #64748b;">Tentukan stok tersedia (contoh: 100 untuk kursi)</small>
         </div>
 
+        {{-- HARGA SEWA --}}
         <div class="form-group">
-            <label>Harga Sewa</label>
+            <label>Harga Sewa (Jasa)</label>
             <input type="text" id="harga_sewa_view" placeholder="Contoh: 1.000.000" required>
             <input type="hidden" name="harga_sewa" id="harga_sewa">
-            <small id="harga_error" class="error-text">
-                Harga hanya boleh diisi dengan angka
-            </small>
+            <small id="sewa_error" class="error-text">Harga hanya boleh diisi dengan angka</small>
+        </div>
+
+        {{-- HARGA BENDA (KOLOM BARU) --}}
+        <div class="form-group">
+            <label>Harga Barang</label>
+            <input type="text" id="harga_benda_view" placeholder="Contoh: 50.000" required>
+            <input type="hidden" name="harga_benda" id="harga_benda">
+            <small id="benda_error" class="error-text">Harga hanya boleh diisi dengan angka</small>
         </div>
 
         <div class="form-group">
@@ -129,36 +138,44 @@
             <div id="preview_gambar"></div>
         </div>
 
-        <button type="submit" class="btn-submit">
-            Simpan
-        </button>
+        <button type="submit" class="btn-submit">Simpan Fasilitas</button>
 
-        <a href="{{ route('fasilitas.index') }}" class="btn-back">
-            Kembali
-        </a>
+        <a href="{{ route('fasilitas.index') }}" class="btn-back">Kembali</a>
     </form>
 </div>
 
 <script>
-    // Format harga
-    const hargaView = document.getElementById('harga_sewa_view');
-    const hargaReal = document.getElementById('harga_sewa');
-    const hargaError = document.getElementById('harga_error');
+    // Fungsi reusable untuk format rupiah
+    function setupMasking(viewId, hiddenId, errorId) {
+        const viewEl = document.getElementById(viewId);
+        const hiddenEl = document.getElementById(hiddenId);
+        const errorEl = document.getElementById(errorId);
 
-    hargaView.addEventListener('input', function () {
-        let value = this.value.replace(/\./g, '');
-        if (!/^\d*$/.test(value)) {
-            hargaError.style.display = 'block';
-            return;
-        }
-        hargaError.style.display = 'none';
-        hargaReal.value = value;
-        if (value !== '') {
-            this.value = new Intl.NumberFormat('id-ID').format(value);
-        }
-    });
+        viewEl.addEventListener('input', function () {
+            // Hapus titik untuk mendapatkan angka murni
+            let value = this.value.replace(/\./g, '');
+            
+            // Cek apakah input adalah angka
+            if (!/^\d*$/.test(value)) {
+                errorEl.style.display = 'block';
+                return;
+            }
+            
+            errorEl.style.display = 'none';
+            hiddenEl.value = value; // Simpan angka asli ke input hidden untuk dikirim ke DB
 
-    // Preview gambar sebelum upload
+            // Format tampilan dengan titik
+            if (value !== '') {
+                this.value = new Intl.NumberFormat('id-ID').format(value);
+            }
+        });
+    }
+
+    // Jalankan masking untuk kedua field harga
+    setupMasking('harga_sewa_view', 'harga_sewa', 'sewa_error');
+    setupMasking('harga_benda_view', 'harga_benda', 'benda_error');
+
+    // Preview gambar
     const gambarInput = document.getElementById('gambar_input');
     const preview = document.getElementById('preview_gambar');
 

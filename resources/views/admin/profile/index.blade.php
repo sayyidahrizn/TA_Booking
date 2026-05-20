@@ -7,7 +7,10 @@
 <style>
     .content-padding { padding: 10px; }
     .profile-grid { display: grid; grid-template-columns: 300px 1fr; gap: 30px; max-width: 1100px; margin: 0 auto; }
-    .card { background: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); padding: 30px; }
+    
+    /* GANTI NAMA CLASS AGAR TIDAK BENTROK DENGAN SIDEBAR */
+    .profile-section-card { background: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); padding: 30px; }
+    
     .profile-card-static { text-align: center; }
     .main-avatar { width: 120px; height: 120px; border-radius: 50%; margin-bottom: 20px; border: 4px solid #f1f5f9; object-fit: cover; }
     .form-label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px; color: #475569; }
@@ -17,7 +20,6 @@
     .btn-submit:hover { background: #2563eb; transform: translateY(-2px); }
     .error-text { color: red; font-size: 12px; margin-bottom: 10px; display: block; }
     
-    /* Style tambahan untuk tombol kamera */
     .avatar-wrapper { position: relative; display: inline-block; }
     .upload-btn { position: absolute; bottom: 25px; right: 5px; background: #3b82f6; color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 3px solid #fff; transition: 0.3s; }
     .upload-btn:hover { background: #2563eb; }
@@ -27,7 +29,7 @@
 
 <div class="content-padding">
     <div class="profile-grid">
-        <div class="card profile-card-static">
+        <div class="profile-section-card profile-card-static">
             <div class="avatar-wrapper">
                 <img id="avatar-preview-admin" 
                      src="{{ $admin->photo ? asset('storage/' . $admin->photo) : 'https://ui-avatars.com/api/?name='.urlencode($admin->name).'&background=3b82f6&color=fff&size=150' }}"
@@ -50,7 +52,7 @@
             </div>
         </div>
 
-        <div class="card">
+        <div class="profile-section-card">
             <h4 style="margin-top: 0; margin-bottom: 25px;">
                 <i class="fas fa-user-edit" style="color:#3b82f6;"></i> Pengaturan Akun
             </h4>
@@ -63,7 +65,6 @@
 
             <form action="{{ route('admin.profile.update') }}" method="POST" enctype="multipart/form-data">
                 @csrf
-                
                 <input type="file" id="photo-admin" name="photo" style="display: none;" accept="image/*" onchange="previewImage(this, 'avatar-preview-admin')">
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">

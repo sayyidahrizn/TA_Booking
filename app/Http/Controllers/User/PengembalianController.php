@@ -239,4 +239,22 @@ class PengembalianController extends Controller
 
         return view('user.pengembalian.bayar_denda', compact('denda', 'snapToken'));
     }
+
+    public function tunaiDenda($id)
+    {
+        $denda = Denda::findOrFail($id);
+
+        // Simpan metode pembayaran
+        $denda->update([
+            'metode_pembayaran' => 'tunai',
+            'status_denda'      => 'pending'
+        ]);
+
+        return redirect()
+            ->route('user.pengembalian')
+            ->with(
+                'success',
+                'Silakan lakukan pembayaran denda di kantor desa.'
+            );
+    }
 }

@@ -88,6 +88,8 @@ Route::middleware(['auth'])->group(function () {
     //pembatalan penyewaan
     Route::post('/penyewaan/batal/{kode}', [UserPenyewaan::class, 'batalGroup'])
     ->name('user.penyewaan.batal');
+
+    Route::post('/user/denda/{id}/tunai',[PengembalianController::class, 'tunaiDenda'])->name('user.denda.tunai');
 });
 
 /*
@@ -120,10 +122,17 @@ Route::prefix('admin')->middleware(['auth', 'isAdmin'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('admin.profile');
     Route::post('/profile/update', [ProfileController::class, 'update'])->name('admin.profile.update');
 
-    Route::get('/laporan', [LaporanController::class, 'index'])->name('admin.laporan');
+    Route::get('/laporan/sewa', [LaporanController::class, 'sewa'])->name('admin.laporan.sewa');
+    Route::get('/laporan/denda', [LaporanController::class, 'denda'])->name('admin.laporan.denda');
+
+    // Rute export & index umum
     Route::get('/laporan/pdf', [LaporanController::class, 'downloadPDF'])->name('admin.laporan.pdf');
     Route::get('/laporan/excel', [LaporanController::class, 'downloadExcel'])->name('admin.laporan.excel');
-});
+    Route::get('/laporan', [LaporanController::class, 'index'])->name('admin.laporan.index');
+
+    Route::post('/pengembalian/konfirmasi/{id}',[AdminPengembalianController::class, 'konfirmasiPembayaran'])->name('admin.pengembalian.konfirmasi');
+
+    });
 
 /*
 |--------------------------------------------------------------------------

@@ -234,8 +234,20 @@
         </div>
 
         <button id="pay-button" class="pay-btn-confirm">
-            Konfirmasi Pembayaran
+            Bayar via Midtrans
         </button>
+
+        <form action="{{ route('user.denda.tunai', $denda->id_denda) }}"
+            method="POST">
+
+            @csrf
+
+            <button type="submit"
+                    class="pay-btn-confirm"
+                    style="margin-top:12px; background:#f59e0b;">
+                Bayar Tunai di Kantor Desa
+            </button>
+        </form>
         
         <a href="{{ route('user.pengembalian') }}" class="pay-back">
             <i class="fas fa-arrow-left me-1"></i> Kembali ke riwayat

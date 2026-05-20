@@ -21,7 +21,7 @@ class ProfileController extends Controller
         $user = $request->user();
 
         // Mengarahkan ke folder view yang benar berdasarkan role
-        if ($user->role === 'admin') {
+        if ($user->role === 'kaur') {
             return view('admin.profile.index', [
                 'admin' => $user,
             ]);
