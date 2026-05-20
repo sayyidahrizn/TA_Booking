@@ -108,7 +108,7 @@
             <div style="display: flex; gap: 20px;">
                 <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
                     <input type="radio" name="metode_pembayaran" value="midtrans" checked style="width: 18px; height: 18px;">
-                    <span style="font-weight: 600;">Transfer Otomatis (Midtrans)</span>
+                    <span style="font-weight: 600;">Transfer Otomatis</span>
                 </label>
                 <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
                     <input type="radio" name="metode_pembayaran" value="tunai" style="width: 18px; height: 18px;">
@@ -659,7 +659,7 @@
                     if(this.value === 'tunai') {
                         info.innerHTML = "<strong>INFO:</strong> Silakan segera datang ke kantor desa dengan membawa identitas diri untuk melakukan pembayaran setelah pengajuan disetujui admin.";
                     } else {
-                        info.innerHTML = "* Bayar praktis dari rumah menggunakan VA, E-Wallet, atau Kartu Kredit.";
+                        info.innerHTML = "* Bayar praktis dari rumah menggunakan Transfer.";
                     }
                 });
             });
