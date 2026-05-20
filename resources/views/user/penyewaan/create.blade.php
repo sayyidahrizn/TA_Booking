@@ -116,7 +116,7 @@
                 </label>
             </div>
             <p id="info_pembayaran" style="margin-top: 10px; font-size: 13px; color: #166534;">
-                * Bayar praktis dari rumah menggunakan VA, E-Wallet, atau Kartu Kredit.
+                * Bayar praktis dari rumah menggunakan Transfer.
             </p>
         </div>
 
