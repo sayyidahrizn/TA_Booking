@@ -89,7 +89,7 @@
 <div class="form-card">
     <h2>Formulir Tambah Fasilitas</h2>
 
-    <form action="{{ route('fasilitas.store') }}" method="POST" enctype="multipart/form-data" id=formFasilitas">
+    <form action="{{ route('fasilitas.store') }}" method="POST" enctype="multipart/form-data" id="formFasilitas">
         @csrf
 
         <div class="form-group">
