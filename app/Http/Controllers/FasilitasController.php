@@ -61,6 +61,7 @@ class FasilitasController extends Controller
             'harga_sewa' => 'required|numeric',
             'jumlah' => 'required|integer',
             'harga_benda' => 'required|numeric',
+            'status_fasilitas'=> 'required|in:tersedia,tidak tersedia',
             'gambar.*' => 'image|mimes:jpeg,png,jpg|max:2048'
         ]);
 
@@ -86,6 +87,7 @@ class FasilitasController extends Controller
 
         return redirect()->route('fasilitas.index')
             ->with('success', 'Fasilitas berhasil ditambahkan');
+            
     }
 
     public function edit($id)
