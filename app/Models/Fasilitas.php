@@ -12,6 +12,7 @@ class Fasilitas extends Model
     protected $fillable = [
         'nama_fasilitas',
         'deskripsi',
+        'jumlah',
         'harga_sewa',
         'harga_benda',
         'status_fasilitas'

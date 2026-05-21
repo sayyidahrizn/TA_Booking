@@ -192,6 +192,34 @@
             reader.readAsDataURL(files[i]);
         }
     });
-</script>
 
+document.addEventListener("DOMContentLoaded", function () {
+        // 1. Jika redirect back membawa error validasi dari Laravel Controller
+        @if($errors->any())
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal Menyimpan',
+                text: 'Mohon periksa isi form kembali. Pastikan file berupa gambar dan ukuran maksimal 2MB.',
+                iconColor: '#ef4444'
+            });
+        @endif
+
+        // 2. Jika ada session error kustom dari Controller
+        @if(session('error'))
+            Swal.fire({
+                icon: 'error',
+                title: 'Terjadi Kesalahan',
+                text: "{{ session('error') }}",
+                iconColor: '#ef4444'
+            });
+        @endif
+    });
+
+    // Loading effect saat form dikirim
+    document.getElementById('formFasilitas').onsubmit = function() {
+        const btn = document.getElementById('btnSimpan');
+        btn.disabled = true;
+        btn.innerHTML = 'Sedang Menyimpan...';
+    };
+</script>
 @endsection
