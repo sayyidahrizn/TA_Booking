@@ -188,9 +188,6 @@
 
     <div class="table-container">
 
-        <form method="POST" action="{{ route('admin.pengembalian.validasi') }}">
-            @csrf
-
             <div class="table-responsive">
                 <table class="custom-table">
 
@@ -219,41 +216,60 @@
                             @php
                                 $first = $items->first();
                                 $rowCount = count($items);
-                                $groupStatusSewa = $items->pluck('penyewaan.status_sewa')->filter()->unique();
+
+                                $deadline = \Carbon\Carbon::parse(
+                                    $first->penyewaan->tgl_selesai
+                                )->startOfDay();
+
+                                $tglKembali = \Carbon\Carbon::parse(
+                                    $first->tanggal_pengembalian
+                                )->startOfDay();
+
+                                $hariTelat = $tglKembali->gt($deadline)
+                                    ? $deadline->diffInDays($tglKembali)
+                                    : 0;
+
+                                $totalDendaTelatBooking = $hariTelat * 10000;
+
+                                $groupStatusSewa = $items->pluck('penyewaan.status_sewa')
+                                    ->filter()
+                                    ->unique();
+
                                 $isMenungguDenda = $groupStatusSewa->contains('menunggu_pembayaran_denda');
-                                $isSelesaiSewa = $groupStatusSewa->every(fn($s) => $s === 'selesai');
-                                $dendaGroup = $items->pluck('penyewaan.denda')
-                                    ->flatten()
-                                    ->sortByDesc('id_denda')
+
+                                $isSelesaiSewa = $groupStatusSewa->every(
+                                    fn($s) => $s === 'selesai'
+                                );
+
+                                $dendaGroup = \App\Models\Denda::where('kode_booking', $kodeBooking)
+                                    ->orderByDesc('id_denda')
                                     ->first();
+
                                 $pembayaran = $first->penyewaan->pembayaran
                                     ->where('jenis_pembayaran', 'pelunasan')
                                     ->last();
-                                $isRequestTunai = $dendaGroup && str_starts_with((string) $dendaGroup->kode_pembayaran, 'TUNAI-REQ-');
+
+                                $isRequestTunai = $dendaGroup &&
+                                    str_starts_with(
+                                        (string) $dendaGroup->kode_pembayaran,
+                                        'TUNAI-REQ-'
+                                    );
                             @endphp
 
                             @foreach($items as $i => $item)
-
                                 @php
                                     $harga = $item->penyewaan->fasilitas->harga_benda ?? 0;
-                                    $dendaTelat = $item->denda_telat_otomatis ?? 0;
                                 @endphp
 
                                 <tr>
-
                                     @if($i === 0)
                                         <td rowspan="{{ $rowCount }}">{{ $no++ }}</td>
-
                                         <td rowspan="{{ $rowCount }}">
-                                            {{ \Carbon\Carbon::parse($first->penyewaan->tgl_mulai)->format('d M Y') }}
-                                            <br>
-                                            s/d
+                                            {{ \Carbon\Carbon::parse($first->penyewaan->tgl_mulai)->format('d M Y') }}<br>s/d<br>
                                             {{ \Carbon\Carbon::parse($first->penyewaan->tgl_selesai)->format('d M Y') }}
                                         </td>
-
                                         <td rowspan="{{ $rowCount }}">
-                                            {{ $first->penyewaan->user->name ?? '-' }}
-                                            <br>
+                                            {{ $first->penyewaan->user->name ?? '-' }}<br>
                                             <small>{{ $kodeBooking }}</small>
                                         </td>
                                     @endif
@@ -267,22 +283,22 @@
                                     </td>
 
                                     @if($i === 0)
+                                        <td rowspan="{{ $rowCount }}">{{ \Carbon\Carbon::parse($first->tanggal_pengembalian)->format('d/m/Y') }}</td>
                                         <td rowspan="{{ $rowCount }}">
-                                            {{ \Carbon\Carbon::parse($first->tanggal_pengembalian)->format('d/m/Y') }}
+                                            @if($totalDendaTelatBooking > 0)
+                                                <span class="badge-status bg-danger-soft">Rp {{ number_format($totalDendaTelatBooking,0,',','.') }}</span>
+                                            @else
+                                                <span class="badge-status bg-success-soft">Tepat Waktu</span>
+                                            @endif
                                         </td>
                                     @endif
 
                                     <td>
-                                        <span class="badge-status {{ $dendaTelat > 0 ? 'bg-danger-soft' : 'bg-success-soft' }}">
-                                            {{ $dendaTelat > 0 ? 'Rp '.number_format($dendaTelat,0,',','.') : 'Tepat Waktu' }}
-                                        </span>
-                                    </td>
-
-                                    <td>
+                                        {{-- Tambahkan atribut form="form_{{ $kodeBooking }}" --}}
                                         <select name="jenis_kerusakan[{{ $item->id }}]"
+                                                form="form_{{ $kodeBooking }}"
                                                 onchange="handleDenda(this,'{{ $item->id }}',{{ $harga }})"
                                                 class="input-sm">
-
                                             <option value="tidak_rusak">Tidak Rusak</option>
                                             <option value="ringan">Rusak Ringan</option>
                                             <option value="berat">Rusak Berat</option>
@@ -290,16 +306,16 @@
 
                                         <div id="denda_{{ $item->id }}" class="denda-input-wrapper">
                                             <span>Rp</span>
-                                            <input type="text"
-                                                class="input-sm rupiah"
+                                            <input type="text" class="input-sm rupiah" 
                                                 name="denda_rusak[{{ $item->id }}]"
-                                                id="input_{{ $item->id }}"
-                                                value="0">
+                                                form="form_{{ $kodeBooking }}"
+                                                id="input_{{ $item->id }}" value="0">
                                         </div>
                                     </td>
 
                                     <td>
-                                        <input type="text" name="catatan_admin[{{ $item->id }}]" class="input-sm">
+                                        <input type="text" name="catatan_admin[{{ $item->id }}]" 
+                                            form="form_{{ $kodeBooking }}" class="input-sm">
                                     </td>
 
                                     @if($i === 0)
@@ -317,28 +333,75 @@
 
                                         {{-- 💰 BAYAR TUNAI (TIDAK DIHAPUS) --}}
                                         <td rowspan="{{ $rowCount }}">
-                                            @if(
-                                                $dendaGroup &&
-                                                $dendaGroup->status_denda == 'belum_bayar' &&
-                                                $isRequestTunai
-                                            )
-                                                <form action="{{ route('admin.pengembalian.konfirmasi', $dendaGroup->id_denda) }}" method="POST">
-                                                    @csrf
+
+                                            @if($dendaGroup)
+
+                                                <div style="margin-bottom:10px;">
+                                                    <small>Total Denda</small><br>
+
+                                                    <span style="
+                                                        color:#dc2626;
+                                                        font-size:16px;
+                                                        font-weight:700;
+                                                    ">
+                                                        Rp {{ number_format($dendaGroup->total_denda,0,',','.') }}
+                                                    </span>
+                                                </div>
+
+                                                @if(
+                                                    $dendaGroup->status_denda == 'belum_bayar' &&
+                                                    $isRequestTunai
+                                                )
+
+                                                    <form
+                                                        id="formTunai{{ $dendaGroup->id_denda }}"
+                                                        action="{{ route('admin.pengembalian.konfirmasi', $dendaGroup->id_denda) }}"
+                                                        method="POST"
+                                                    >
+                                                        @csrf
+
+                                                        <input
+                                                            name="jumlah_bayar"
+                                                            class="raw-nominal"
+                                                        >
+                                                    </form>
+
                                                     <div class="action-input-wrapper">
+
                                                         <span class="currency-symbol">Rp</span>
-                                                        <input type="text" class="nominal-input" placeholder="0" onkeyup="formatRupiah(this)" required>
-                                                        <input type="hidden" name="jumlah_dibayar" class="raw-nominal">
-                                                        <button type="submit" class="btn-save-nominal">Simpan</button>
+
+                                                        <button
+                                                            type="submit"
+                                                            form="formTunai{{ $dendaGroup->id_denda }}"
+                                                            class="btn-save-nominal"
+                                                        >
+                                                            Simpan
+                                                        </button>
+
                                                     </div>
-                                                </form>
+
+                                                @elseif($dendaGroup->status_denda == 'lunas')
+
+                                                    <span class="badge-status bg-success-soft">
+                                                        Lunas
+                                                    </span>
+
+                                                @else
+
+                                                    <small>Transfer / Tunai</small>
+
+                                                @endif
+
                                             @else
+
                                                 -
+
                                             @endif
+
                                         </td>
 
                                         {{-- 🧾 AKSI (TERMASUK CETAK BUKTI) --}}
                                         <td rowspan="{{ $rowCount }}">
-                                            {{-- BELUM ADA DENDA --}}
                                             @if($isMenungguDenda)
                                                 <button type="button" class="btn-action btn-disabled" disabled>
                                                     Menunggu Pembayaran Denda
@@ -351,51 +414,65 @@
 
                                             @elseif(!$dendaGroup)
 
-                                                <button type="submit" 
-                                                        name="submit_booking" 
-                                                        value="{{ $kodeBooking }}" 
-                                                        class="btn-action btn-primary-custom">
-                                                    Selesaikan & Tagih
-                                                </button>
+                                                {{-- Form utama, select kerusakan akan di-inject via JS --}}
+                                                <form id="form_{{ $kodeBooking }}"
+                                                    method="POST"
+                                                    action="{{ route('admin.pengembalian.validasi') }}">
+                                                    @csrf
+                                                    <input type="hidden" name="submit_booking" value="{{ $kodeBooking }}">
 
-                                            {{-- SUDAH LUNAS --}}
+                                                    {{-- Placeholder: hidden input untuk tiap item, diisi JS saat submit --}}
+                                                    @foreach($items as $row)
+                                                        <input type="hidden"
+                                                            id="hk_{{ $row->id }}"
+                                                            name="jenis_kerusakan[{{ $row->id }}]"
+                                                            value="tidak_rusak">
+                                                        <input type="hidden"
+                                                            id="hdr_{{ $row->id }}"
+                                                            name="denda_rusak[{{ $row->id }}]"
+                                                            value="0">
+                                                        <input type="hidden"
+                                                            id="hca_{{ $row->id }}"
+                                                            name="catatan_admin[{{ $row->id }}]"
+                                                            value="">
+                                                    @endforeach
+
+                                                    <button type="button"
+                                                            class="btn-action btn-primary-custom"
+                                                            onclick="submitValidasi('{{ $kodeBooking }}', [{{ $items->pluck('id')->join(',') }}])">
+                                                        Selesaikan & Tagih
+                                                    </button>
+                                                </form>
+
                                             @elseif($dendaGroup->status_denda == 'lunas')
-
                                                 <button type="button" class="btn-action bg-success-soft" style="color:#166534;" disabled>
                                                     ✓ Selesai
                                                 </button>
-
                                                 <a href="{{ route('admin.pengembalian.bukti', $dendaGroup->id_denda) }}"
                                                 target="_blank"
                                                 class="btn-print">
                                                     Cetak Bukti
                                                 </a>
 
-                                            {{-- MENUNGGU MIDTRANS --}}
                                             @elseif(
                                                 $pembayaran &&
                                                 $pembayaran->metode_pembayaran == 'midtrans' &&
                                                 $pembayaran->status_pembayaran == 'pending'
                                             )
-
                                                 <button type="button" class="btn-action btn-disabled" disabled>
                                                     Menunggu Pembayaran Midtrans
                                                 </button>
 
-                                            {{-- DENDA BELUM DIBAYAR --}}
                                             @elseif($dendaGroup->status_denda == 'belum_bayar')
                                                 <button type="button" class="btn-action btn-disabled" disabled>
                                                     Menunggu Pembayaran Denda
                                                 </button>
 
                                             @else
-
                                                 <button type="button" class="btn-action btn-disabled" disabled>
                                                     Diproses...
                                                 </button>
-
                                             @endif
-
                                         </td>
                                     @endif
 
@@ -412,8 +489,6 @@
                 </table>
             </div>
 
-        </form>
-
             <div style="padding:15px">
                 {{ $data->links() }}
             </div>
@@ -422,45 +497,70 @@
 </div>
 
 <script>
-function handleDenda(select,id,harga){
-    let box = document.getElementById('denda_'+id);
-    let input = document.getElementById('input_'+id);
-
-    if(select.value === 'ringan'){
-        box.style.display='flex';
-        input.value='';
-        input.readOnly=false;
-    } else if(select.value === 'berat'){
-        box.style.display='flex';
-        input.value=harga;
-        input.readOnly=true;
+// Format rupiah pada input
+function handleDenda(select, id, harga) {
+    let box = document.getElementById('denda_' + id);
+    let input = document.getElementById('input_' + id);
+    if (select.value === 'ringan') {
+        box.style.display = 'flex';
+        input.value = '';
+        input.readOnly = false;
+    } else if (select.value === 'berat') {
+        box.style.display = 'flex';
+        input.value = new Intl.NumberFormat('id-ID').format(harga);
+        input.readOnly = true;
     } else {
-        box.style.display='none';
-        input.value=0;
+        box.style.display = 'none';
+        input.value = 0;
     }
 }
 
-document.querySelectorAll('.rupiah').forEach(function(input){
-
-    input.addEventListener('keyup', function(){
-
-        let angka = this.value.replace(/\D/g,'');
-
-        this.value = new Intl.NumberFormat('id-ID')
-            .format(angka);
-
+document.querySelectorAll('.rupiah').forEach(function (input) {
+    input.addEventListener('keyup', function () {
+        let angka = this.value.replace(/\D/g, '');
+        this.value = new Intl.NumberFormat('id-ID').format(angka);
     });
-
 });
 
-function formatRupiah(input){
-    let angka = input.value.replace(/\D/g,'');
-    input.value = new Intl.NumberFormat('id-ID').format(angka);
-    let hidden = input.closest('form').querySelector('.raw-nominal');
-    if(hidden) hidden.value = angka || 0;
+function submitValidasi(kodeBooking, ids) {
+    let hasDenda = false;
+
+    ids.forEach(function (id) {
+        // Ambil elemen dari baris tabel (UI)
+        let selectEl = document.querySelector('select[name="jenis_kerusakan[' + id + ']"]');
+        let dendaEl  = document.getElementById('input_' + id);
+        let catatanEl = document.querySelector('input[name="catatan_admin[' + id + ']"]');
+
+        // Target hidden input di dalam FORM (yang akan dikirim ke server)
+        let hkEl  = document.getElementById('hk_' + id);
+        let hdrEl = document.getElementById('hdr_' + id);
+        let hcaEl = document.getElementById('hca_' + id);
+
+        if (selectEl && hkEl) hkEl.value = selectEl.value;
+        
+        if (dendaEl && hdrEl) {
+            // Hapus titik ribuan agar menjadi angka murni (e.g. 10.000 -> 10000)
+            let nominal = dendaEl.value.replace(/\./g, '');
+            hdrEl.value = nominal || '0';
+            if (parseInt(nominal) > 0) hasDenda = true;
+        }
+        
+        if (catatanEl && hcaEl) hcaEl.value = catatanEl.value;
+    });
+
+    Swal.fire({
+        title: 'Validasi Pengembalian?',
+        text: "Data akan disimpan dan status akan diperbarui.",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#7c3aed',
+        confirmButtonText: 'Ya, Selesaikan!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('form_' + kodeBooking).submit();
+        }
+    });
 }
-
-
 </script>
 
 @endsection

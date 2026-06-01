@@ -304,7 +304,7 @@
         Swal.fire({
             icon: 'question',
             title: 'Konfirmasi Pembayaran Tunai',
-            text: 'Setelah dikirim, status denda menjadi menunggu verifikasi admin.',
+            text: 'Silakan segera datang ke kantor desa dengan membawa identitas diri untuk melakukan pembayaran denda.',
             showCancelButton: true,
             confirmButtonText: 'Ya, Kirim',
             cancelButtonText: 'Batal'

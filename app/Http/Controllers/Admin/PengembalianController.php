@@ -62,104 +62,82 @@ class PengembalianController extends Controller
      */
     public function validasi(Request $request)
     {
-        // Ambil nilai dari 'kode_booking' atau 'submit_booking'
         $kodeBooking = $request->kode_booking ?? $request->submit_booking;
-
-        // Masukkan kembali ke request agar validator Laravel bekerja
         $request->merge(['kode_booking' => $kodeBooking]);
 
-        // 1. Validasi input
         $request->validate([
             'kode_booking'    => 'required',
             'jenis_kerusakan' => 'required|array',
-        ], [
-            'kode_booking.required'    => 'Kode booking tidak ditemukan.',
-            'jenis_kerusakan.required' => 'Kondisi kerusakan belum dipilih.',
         ]);
 
         DB::beginTransaction();
-
         try {
-            // 2. Ambil semua data pengembalian
             $pengembalianList = Pengembalian::with(['penyewaan.fasilitas', 'penyewaan.user'])
                 ->whereHas('penyewaan', function ($q) use ($kodeBooking) {
                     $q->where('kode_booking', $kodeBooking);
                 })->get();
 
             if ($pengembalianList->isEmpty()) {
-                return back()->with('error', 'Data pengembalian tidak ditemukan di sistem.');
+                return back()->with('error', 'Data tidak ditemukan.');
             }
 
-            $penyewaanIds = $pengembalianList
-                ->pluck('id_penyewaan')
-                ->filter()
-                ->unique()
-                ->values()
-                ->all();
-
-            $existingDenda = Denda::where('kode_booking', $kodeBooking)
-                ->whereIn('status_denda', ['belum_bayar', 'lunas'])
-                ->first();
-
-            if ($existingDenda) {
-                if (!empty($penyewaanIds)) {
-                    DB::table('penyewaan')
-                        ->whereIn('id_penyewaan', $penyewaanIds)
-                        ->update([
-                            'status_sewa' => $existingDenda->status_denda === 'lunas'
-                                ? 'selesai'
-                                : 'menunggu_pembayaran_denda'
-                        ]);
-                }
-                return back()->with('success', 'Kode Booking ' . $kodeBooking . ' sudah ditagih sebelumnya.');
-            }
+            $penyewaanIds = $pengembalianList->pluck('id_penyewaan')->unique()->toArray();
+            $penyewaanUtama = $pengembalianList->first()->penyewaan;
+            
+            // Hapus denda lama agar tidak double
+            Denda::where('kode_booking', $kodeBooking)->where('status_denda', 'belum_bayar')->delete();
 
             $totalDendaTelat = 0;
             $totalDendaRusak = 0;
             $catatanGrup = [];
             $jenisKerusakanTerparah = 'tidak_rusak';
 
-            // 3. Loop setiap item
+            // Bagian dalam method validasi()
             foreach ($pengembalianList as $item) {
                 $id = $item->id;
-                $penyewaan = $item->penyewaan;
                 
+                // Ambil data dari request
                 $kerusakan = $request->jenis_kerusakan[$id] ?? 'tidak_rusak';
+                // Gunakan regex untuk menghapus semua karakter kecuali angka
+                $nominalDendaRequest = preg_replace('/[^0-9]/', '', $request->denda_rusak[$id] ?? '0');
                 $catatan = $request->catatan_admin[$id] ?? null;
 
-                // A. Hitung Denda Keterlambatan (Misal: 10rb/hari)
-                $deadline = \Carbon\Carbon::parse($penyewaan->tgl_selesai)->startOfDay();
-                $tglKembali = \Carbon\Carbon::parse($item->tanggal_pengembalian)->startOfDay();
-                $hariTelat = $tglKembali->gt($deadline) ? $tglKembali->diffInDays($deadline) : 0;
-                $totalDendaTelat += ($hariTelat * 10000);
+                // 1. Hitung Denda Telat (Gunakan endOfDay agar adil bagi penyewa)
+                $deadline = Carbon::parse($item->penyewaan->tgl_selesai)->endOfDay();
+                $tglKembali = Carbon::parse($item->tanggal_pengembalian);
 
-                // B. Hitung Denda Kerusakan
+                // Jika tanggal kembali melewati deadline
+                if ($tglKembali->gt($deadline)) {
+                    // diffInDays menghasilkan angka bulat
+                    $hariTelat = $tglKembali->diffInDays($deadline);
+                    $totalDendaTelat += ($hariTelat * 10000);
+                }
+
+                // 2. Hitung Denda Rusak
                 $biayaRusakItem = 0;
                 if ($kerusakan === 'ringan') {
-                    $rawDenda = $request->denda_rusak[$id] ?? '0';
-                    $biayaRusakItem = (int) str_replace(['.', ','], '', $rawDenda);
-                    
+                    $biayaRusakItem = (int) $nominalDendaRequest;
                     if($jenisKerusakanTerparah !== 'berat') $jenisKerusakanTerparah = 'ringan';
                 } elseif ($kerusakan === 'berat') {
-                    $biayaRusakItem = $penyewaan->fasilitas->harga_benda ?? 0;
+                    $biayaRusakItem = $item->penyewaan->fasilitas->harga_benda ?? 0;
                     $jenisKerusakanTerparah = 'berat';
                 }
                 $totalDendaRusak += $biayaRusakItem;
 
-                // C. Update status item pengembalian
+                // 3. Update status item pengembalian
                 $item->update([
                     'status_validasi' => 'disetujui',
                     'catatan_admin'   => $catatan,
                 ]);
 
                 if($catatan) {
-                    $catatanGrup[] = "{$penyewaan->fasilitas->nama_fasilitas}: {$catatan}";
+                    $catatanGrup[] = $item->penyewaan->fasilitas->nama_fasilitas . ": " . $catatan;
                 }
             }
 
-            // 4. Update/Create Tabel Denda & Status Utama
-            $penyewaanUtama = $pengembalianList->first()->penyewaan;
             $totalDendaFinal = $totalDendaTelat + $totalDendaRusak;
+
+            // JIKA TOTAL DENDA > 0, BARU SIMPAN KE TABEL DENDA
             if ($totalDendaFinal > 0) {
                 Denda::create([
                     'id_penyewaan'         => $penyewaanUtama->id_penyewaan,
@@ -172,54 +150,28 @@ class PengembalianController extends Controller
                     'status_denda'         => 'belum_bayar',
                 ]);
 
-                if (!empty($penyewaanIds)) {
-                    DB::table('penyewaan')
-                        ->whereIn('id_penyewaan', $penyewaanIds)
-                        ->update(['status_sewa' => 'menunggu_pembayaran_denda']);
-                }
-
-                // =========================
-                // KIRIM WHATSAPP
-                // =========================
+                // Update status menjadi menunggu denda
+                DB::table('penyewaan')->whereIn('id_penyewaan', $penyewaanIds)
+                    ->update(['status_sewa' => 'menunggu_pembayaran_denda']);
+                
+                // WA Notifikasi...
                 $user = $penyewaanUtama->user;
                 if ($user && $user->no_hp) {
-                    $pesan = "Halo *{$user->name}*\n\n" .
-                            "Pengembalian fasilitas sudah divalidasi admin.\n\n" .
-                            "Kode Booking: *{$kodeBooking}*\n" .
-                            "Total Denda: *Rp " . number_format($totalDendaFinal, 0, ',', '.') . "*\n" .
-                            "Status: *Belum Dibayar*\n\n" .
-                            "Silakan segera melakukan pembayaran denda melalui dashboard Anda.\n\n" .
-                            "Terima kasih.";
-
-                    $sent = FonnteService::send($user->no_hp, $pesan);
-                    if (!$sent) {
-                        Log::warning('Notifikasi denda gagal dikirim via Fonnte', [
-                            'kode_booking' => $kodeBooking,
-                            'user_id' => $user->id ?? null,
-                            'target' => $user->no_hp,
-                        ]);
-                    }
+                    $pesan = "Halo *{$user->name}*\n\nPengembalian fasilitas kode booking *{$kodeBooking}* sudah divalidasi.\nTotal Denda: *Rp " . number_format($totalDendaFinal, 0, ',', '.') . "*\nSilakan selesaikan pembayaran denda melalui dashboard.";
+                    FonnteService::send($user->no_hp, $pesan);
                 }
-
             } else {
-                // Jika tidak ada denda sama sekali
-                if (!empty($penyewaanIds)) {
-                    DB::table('penyewaan')
-                        ->whereIn('id_penyewaan', $penyewaanIds)
-                        ->update(['status_sewa' => 'selesai']);
-                }
+                // Jika benar-benar 0 (tidak telat & tidak rusak), status baru selesai
+                DB::table('penyewaan')->whereIn('id_penyewaan', $penyewaanIds)
+                    ->update(['status_sewa' => 'selesai']);
             }
 
             DB::commit();
-            return back()->with('success', 'Berhasil memvalidasi Kode Booking: ' . $kodeBooking);
-
-        } catch (\Throwable $e) {
+            return back()->with('success', 'Berhasil memvalidasi booking ' . $kodeBooking);
+        } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Validasi pengembalian gagal', [
-                'kode_booking' => $kodeBooking,
-                'message' => $e->getMessage(),
-            ]);
-            return back()->with('error', 'Gagal memproses validasi: ' . $e->getMessage());
+            Log::error("Error Validasi: " . $e->getMessage());
+            return back()->with('error', 'Gagal: ' . $e->getMessage());
         }
     }
 
@@ -228,8 +180,9 @@ class PengembalianController extends Controller
      */
     public function konfirmasiPembayaran(Request $request, $id)
     {
+
         $request->validate([
-            'jumlah_dibayar' => 'required|numeric|min:0',
+            'jumlah_bayar' => 'required|numeric|min:0',
         ]);
 
         DB::beginTransaction();
@@ -238,7 +191,7 @@ class PengembalianController extends Controller
 
             $denda = Denda::with('penyewaan')->findOrFail($id);
 
-            if ($request->jumlah_dibayar < $denda->total_denda) {
+            if ($request->jumlah_bayar < $denda->total_denda) {
                 return back()->with('error', 'Uang kurang dari total denda!');
             }
 
@@ -248,7 +201,7 @@ class PengembalianController extends Controller
                 'kode_pembayaran'   => 'BYR-' . strtoupper(uniqid()),
                 'jenis_pembayaran'  => 'pelunasan',
                 'metode_pembayaran' => 'tunai',
-                'jumlah_bayar'      => $request->jumlah_dibayar,
+                'jumlah_bayar'      => $request->jumlah_bayar,
                 'status_pembayaran' => 'berhasil',
                 'tanggal_bayar'     => now(),
             ]);
@@ -256,8 +209,7 @@ class PengembalianController extends Controller
             // ✅ update status denda
             $denda->update([
                 'status_denda' => 'lunas',
-                'metode_pembayaran' => 'tunai',
-                'jumlah_dibayar' => $request->jumlah_dibayar,
+
             ]);
 
             // ✅ update status sewa (semua item satu booking)
