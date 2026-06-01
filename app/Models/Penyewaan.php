@@ -40,7 +40,7 @@ class Penyewaan extends Model
      * Relasi ke model Denda
      */
     public function denda() {
-        return $this->hasOne(Denda::class, 'id_penyewaan', 'id_penyewaan');
+        return $this->hasMany(Denda::class, 'id_penyewaan', 'id_penyewaan');
     }
 
     public function user() {
@@ -53,5 +53,29 @@ class Penyewaan extends Model
 
     public function pengembalian() {
         return $this->hasOne(Pengembalian::class, 'id_penyewaan', 'id_penyewaan');
+    }
+
+    public function getStatusPembayaranAttribute()
+    {
+        $all = $this->pembayaran;
+
+        if ($all->count() === 0) {
+            return 'BELUM DIBAYAR';
+        }
+
+        $hasPelunasan = $all->contains(fn($p) =>
+            strtolower($p->jenis_pembayaran) == 'pelunasan'
+            && strtolower($p->status_pembayaran) == 'berhasil'
+        );
+
+        $hasDp = $all->contains(fn($p) =>
+            strtolower($p->jenis_pembayaran) == 'dp'
+            && strtolower($p->status_pembayaran) == 'berhasil'
+        );
+
+        if ($hasPelunasan) return 'LUNAS';
+        if ($hasDp) return 'DP';
+
+        return 'BELUM DIBAYAR';
     }
 }

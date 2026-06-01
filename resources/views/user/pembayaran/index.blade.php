@@ -258,6 +258,13 @@
             </div>
         </div>
 
+        @if($pembayaran->metode_pembayaran == 'tunai')
+            <div style="background:#fff7ed; border:1px solid #fed7aa; padding:15px; border-radius:10px; margin-bottom:15px;">
+                <b>Metode Pembayaran: Tunai</b><br>
+                Silakan datang ke kantor desa untuk melakukan pembayaran.
+            </div>
+        @endif
+
         <form action="{{ route('user.pembayaran.proses', $penyewaan->id_penyewaan) }}"
               method="POST"
               id="payment-form">
@@ -295,22 +302,18 @@
                 @enderror
             </div>
 
-            @if(!isset($snapToken))
+            @if($pembayaran->metode_pembayaran == 'midtrans' && !isset($snapToken))
                 <button type="submit" class="btn btn-pay-now">
                     Konfirmasi Pembayaran
                 </button>
             @endif
         </form>
 
-        @if(isset($snapToken))
+        @if($pembayaran->metode_pembayaran == 'midtrans' && isset($snapToken))
             <button id="pay-button"
                     class="btn btn-pay-now"
                     style="background:#10b981;">
-
-                <i class="bi bi-shield-lock-fill me-2"></i>
-
                 Bayar Sekarang
-                (Rp{{ number_format($pembayaran->jumlah_bayar, 0, ',', '.') }})
             </button>
         @endif
 

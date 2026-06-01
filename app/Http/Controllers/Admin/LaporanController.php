@@ -17,239 +17,108 @@ class LaporanController extends Controller
 
         $startDate = $request->start_date;
         $endDate   = $request->end_date;
+        $jenis     = $request->jenis ?? 'semua';
+        $status    = $request->status;
 
-        // =========================================
-        // DEFAULT FILTER
-        // =========================================
-
-        $jenis  = $request->jenis ?? 'semua';
-        $status = $request->status;
-
-        // =========================================
-        // QUERY DASAR
-        // =========================================
-
-        $query = Penyewaan::with([
-            'user',
-            'fasilitas',
-            'denda'
-        ]);
-
-        // =========================================
-        // FILTER TANGGAL
-        // =========================================
+        $query = Penyewaan::with(['user', 'fasilitas', 'denda']);
 
         if ($startDate && $endDate) {
-
             $query->whereBetween('created_at', [
                 $startDate . ' 00:00:00',
                 $endDate . ' 23:59:59'
             ]);
         }
 
-        // =========================================
-        // FILTER KATEGORI
-        // =========================================
-
         if ($jenis == 'denda') {
-
-            // HANYA YANG PUNYA DENDA
             $query->whereHas('denda');
         }
 
-        // =========================================
-        // FILTER STATUS
-        // =========================================
-
         if ($status) {
-
-            // =====================================
-            // KHUSUS KATEGORI DENDA
-            // =====================================
-
             if ($jenis == 'denda') {
-
                 if ($status == 'denda_belum_bayar') {
-
                     $query->whereHas('denda', function ($q) {
-
-                        $q->where('status_pembayaran', '!=', 'lunas');
-
+                        $q->where('status_denda', '!=', 'lunas');
                     });
-
                 } elseif ($status == 'denda_lunas') {
-
                     $query->whereHas('denda', function ($q) {
-
-                        $q->where('status_pembayaran', 'lunas');
-
+                        $q->where('status_denda', 'lunas');
                     });
                 }
-
-            }
-
-            // =====================================
-            // KATEGORI LAIN = STATUS SEWA
-            // =====================================
-
-            else {
-
+            } else {
                 $query->where('status_sewa', $status);
             }
         }
 
-        // =========================================
-        // AMBIL DATA
-        // =========================================
-
         if ($isExport) {
-
-            $detailLaporan = $query
-                ->latest()
-                ->get();
-
+            $detailLaporan = $query->latest()->get();
         } else {
-
-            $detailLaporan = $query
-                ->latest()
-                ->paginate(10)
-                ->withQueryString();
+            $detailLaporan = $query->latest()->paginate(10)->withQueryString();
         }
 
-        // =========================================
-        // PERIODE
-        // =========================================
+        $periodeTeks = ($startDate && $endDate) 
+            ? Carbon::parse($startDate)->translatedFormat('d F Y') . ' s/d ' . Carbon::parse($endDate)->translatedFormat('d F Y')
+            : "Semua Waktu";
 
-        $periodeTeks = "Semua Waktu";
-
-        if ($startDate && $endDate) {
-
-            $periodeTeks =
-                Carbon::parse($startDate)->translatedFormat('d F Y')
-                . ' s/d ' .
-                Carbon::parse($endDate)->translatedFormat('d F Y');
-        }
-
-        // =========================================
-        // WAKTU CETAK
-        // =========================================
-
-        $tglCetak = Carbon::now('Asia/Jakarta')
-            ->translatedFormat('d F Y');
-
-        $waktuCetak = Carbon::now('Asia/Jakarta')
-            ->format('H:i');
+        $tglCetak = Carbon::now('Asia/Jakarta')->translatedFormat('d F Y');
+        $waktuCetak = Carbon::now('Asia/Jakarta')->format('H:i');
 
         return compact(
-            'detailLaporan',
-            'jenis',
-            'status',
-            'startDate',
-            'endDate',
-            'periodeTeks',
-            'tglCetak',
-            'waktuCetak'
+            'detailLaporan', 'jenis', 'status', 'startDate', 
+            'endDate', 'periodeTeks', 'tglCetak', 'waktuCetak'
         );
     }
-
-    // =========================================
-    // HALAMAN LAPORAN
-    // =========================================
 
     public function index(Request $request)
     {
-        return view(
-            'admin.laporan.index',
-            $this->getLaporanData($request)
-        );
+        return view('admin.laporan.index', $this->getLaporanData($request));
     }
-
-    // =========================================
-    // DOWNLOAD PDF
-    // =========================================
 
     public function downloadPDF(Request $request)
     {
         $data = $this->getLaporanData($request, true);
-
-        $pdf = Pdf::loadView(
-            'admin.laporan.pdf',
-            $data
-        )->setPaper('a4', 'landscape');
-
-        $namaFile =
-            'Laporan-' .
-            ucfirst($request->jenis ?? 'semua') .
-            '-' .
-            Carbon::now('Asia/Jakarta')->format('d-m-Y-H-i')
-            . '.pdf';
-
+        $pdf = Pdf::loadView('admin.laporan.pdf', $data)->setPaper('a4', 'landscape');
+        $namaFile = 'Laporan-'.ucfirst($request->jenis ?? 'semua').'-'.Carbon::now()->format('d-m-Y-H-i').'.pdf';
         return $pdf->download($namaFile);
     }
 
-    // =========================================
-    // HALAMAN LAPORAN PEMASUKAN SEWA
-    // =========================================
     public function sewa(Request $request)
     {
-        // 1. Paksa jenis menjadi 'sewa'
         $request->merge(['jenis' => 'sewa']);
-        
-        // 2. Ambil data laporan (pagination & detail)
         $data = $this->getLaporanData($request);
-        
-        // 3. DEFINISIKAN VARIABEL DI SINI (Untuk menghilangkan garis merah)
         $startDate = $request->start_date ?? '1970-01-01';
         $endDate   = $request->end_date ?? now()->format('Y-m-d');
 
-        // 4. Hitung total pemasukan menggunakan variabel yang sudah didefinisikan
-        $data['totalPemasukan'] = \App\Models\Penyewaan::whereBetween('created_at', [
+        $data['totalPemasukan'] = Penyewaan::whereBetween('created_at', [
                 $startDate . ' 00:00:00',
                 $endDate . ' 23:59:59'
-            ])
-            ->sum('total_harga');
+            ])->sum('total_harga');
 
         return view('admin.laporan.sewa', $data);
     }
 
-    // =========================================
-    // HALAMAN LAPORAN PEMASUKAN DENDA
-    // =========================================
     public function denda(Request $request)
     {
-        // Paksa jenis menjadi denda agar masuk ke filter query denda
         $request->merge(['jenis' => 'denda']);
-        
         $data = $this->getLaporanData($request);
         
-        // Hitung total denda secara dinamis dari tabel relasi denda
-        $data['totalDenda'] = \App\Models\Penyewaan::whereHas('denda')
+        $data['totalDenda'] = Penyewaan::whereHas('denda')
             ->whereBetween('created_at', [
                 ($request->start_date ?? '1970-01-01') . ' 00:00:00',
                 ($request->end_date ?? now()->format('Y-m-d')) . ' 23:59:59'
             ])
             ->get()
             ->sum(function($item) {
-                return $item->denda->jumlah_denda ?? 0;
+                // Akumulasi total_denda dari semua denda yang ada di koleksi
+                return $item->denda->sum('total_denda');
             });
 
         return view('admin.laporan.denda', $data);
     }
 
-    // =========================================
-    // DOWNLOAD EXCEL / CSV
-    // =========================================
-
     public function downloadExcel(Request $request)
     {
         $data = $this->getLaporanData($request, true);
-
-        $fileName =
-            'Laporan-' .
-            ucfirst($request->jenis ?? 'semua') .
-            '-' .
-            date('d-m-Y')
-            . '.csv';
+        $fileName = 'Laporan-'.ucfirst($request->jenis ?? 'semua').'-'.date('d-m-Y').'.csv';
 
         $headers = [
             "Content-type"        => "text/csv",
@@ -260,122 +129,48 @@ class LaporanController extends Controller
         ];
 
         $callback = function () use ($data) {
-
             $file = fopen('php://output', 'w');
-
             fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
-
             $delimiter = ";";
 
-            fputcsv($file, [
-                'LAPORAN ' . strtoupper($data['jenis'])
-            ], $delimiter);
-
-            fputcsv($file, [
-                'Periode',
-                $data['periodeTeks']
-            ], $delimiter);
-
-            fputcsv($file, [
-                'Tanggal Cetak',
-                $data['tglCetak'] . ' ' .
-                $data['waktuCetak'] . ' WIB'
-            ], $delimiter);
-
+            fputcsv($file, ['LAPORAN ' . strtoupper($data['jenis'])], $delimiter);
+            fputcsv($file, ['Periode', $data['periodeTeks']], $delimiter);
+            fputcsv($file, ['Tanggal Cetak', $data['tglCetak'] . ' WIB'], $delimiter);
             fputcsv($file, [], $delimiter);
 
             fputcsv($file, [
-                'NO',
-                'KODE BOOKING',
-                'PENYEWA',
-                'FASILITAS',
-                'JUMLAH SEWA',
-                'TOTAL HARGA',
-                'STATUS SEWA',
-                'KONDISI BARANG',
-                'JUMLAH DENDA',
-                'ALASAN DENDA',
-                'CATATAN DENDA',
-                'STATUS PEMBAYARAN DENDA',
-                'TANGGAL'
+                'NO', 'KODE BOOKING', 'PENYEWA', 'FASILITAS', 'JUMLAH SEWA', 'TOTAL HARGA',
+                'STATUS SEWA', 'KONDISI BARANG', 'JUMLAH DENDA', 'ALASAN DENDA',
+                'CATATAN DENDA', 'STATUS PEMBAYARAN DENDA', 'TANGGAL'
             ], $delimiter);
 
             foreach ($data['detailLaporan'] as $key => $item) {
-
-                $statusSewa = ucfirst($item->status_sewa ?? '-');
-
-                $kondisiDenda = '-';
-                $jumlahDenda  = '-';
-                $alasanDenda  = '-';
-                $catatanDenda = '-';
-                $statusDenda  = '-';
-
-                if ($item->denda) {
-
-                    $kondisiDenda =
-                        ucfirst($item->denda->kondisi_barang ?? '-');
-
-                    $jumlahDenda =
-                        'Rp ' . number_format(
-                            $item->denda->jumlah_denda ?? 0,
-                            0,
-                            ',',
-                            '.'
-                        );
-
-                    $alasanDenda =
-                        $item->denda->alasan_denda ?? '-';
-
-                    $catatanDenda =
-                        $item->denda->catatan ?? '-';
-
-                    $statusDenda =
-                        ucfirst($item->denda->status_pembayaran ?? '-');
-                }
+                // Menggabungkan data denda dari HasMany
+                $totalNominal = $item->denda->sum('total_denda');
+                $jenisDenda   = $item->denda->pluck('jenis_kerusakan')->filter()->implode(', ');
+                $alasanDenda  = $item->denda->pluck('keterangan_kerusakan')->filter()->implode(' | ');
+                $isLunas      = !$item->denda->contains('status_denda', 'belum_bayar');
 
                 fputcsv($file, [
-
                     $key + 1,
-
                     $item->kode_booking,
-
                     $item->user->name ?? '-',
-
                     $item->fasilitas->nama_fasilitas ?? '-',
-
                     $item->jumlah_sewa,
-
-                    'Rp ' . number_format(
-                        $item->total_harga,
-                        0,
-                        ',',
-                        '.'
-                    ),
-
-                    $statusSewa,
-
-                    $kondisiDenda,
-
-                    $jumlahDenda,
-
-                    $alasanDenda,
-
-                    $catatanDenda,
-
-                    $statusDenda,
-
+                    'Rp ' . number_format($item->total_harga, 0, ',', '.'),
+                    ucfirst($item->status_sewa ?? '-'),
+                    $jenisDenda ?: '-',
+                    'Rp ' . number_format($totalNominal, 0, ',', '.'),
+                    $alasanDenda ?: '-',
+                    '-',
+                    $isLunas ? 'Lunas' : 'Ada Tunggakan',
                     $item->created_at->format('d-m-Y')
-
                 ], $delimiter);
             }
-
             fclose($file);
         };
 
-        return response()->stream(
-            $callback,
-            200,
-            $headers
-        );
+        if (ob_get_level() > 0) ob_end_clean();
+        return response()->stream($callback, 200, $headers);
     }
 }

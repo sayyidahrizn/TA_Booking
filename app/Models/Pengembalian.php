@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Pengembalian extends Model
 {
     protected $table = 'pengembalian';
+    protected $primaryKey = 'id';
 
     protected $fillable = [
         'id_penyewaan',
@@ -26,5 +27,10 @@ class Pengembalian extends Model
             'id_penyewaan',
             'id_penyewaan'
         );
+    }
+
+    public function denda()
+    {
+        return $this->hasOne(Denda::class, 'id_penyewaan', 'id_penyewaan');
     }
 }

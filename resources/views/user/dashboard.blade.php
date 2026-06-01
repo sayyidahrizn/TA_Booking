@@ -51,13 +51,23 @@
                     @forelse($penyewaan as $index => $group)
                         @php 
                             $p = $group->first(); 
+
                             $statusSewa = strtolower($p->status_sewa);
-                            $statusBayar = strtolower($p->status_pembayaran);
-                            
+
                             $totalHargaSewa = $group->sum('total_harga'); 
+
                             $dataKembali = $p->pengembalian; 
-                            $totalDenda = $dataKembali ? $dataKembali->total_denda : 0;
-                            $grandTotal = $totalHargaSewa + $totalDenda;
+
+                            $grandTotal = $totalHargaSewa;
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | STATUS PEMBAYARAN
+                            |--------------------------------------------------------------------------
+                            */
+                            $statusBayar = $p->pembayaran->where('status_pembayaran', 'berhasil')->sum('jumlah_bayar') >= 
+                                            $group->sum('total_harga')
+                                            ? 'LUNAS' : 'PENDING';
                         @endphp
                         <tr style="border-bottom: 1px solid #f7fafc;">
                             <td style="padding: 20px 25px; font-size: 14px; color: #718096; font-weight: 600;">{{ $loop->iteration }}</td>
@@ -75,19 +85,16 @@
                             </td>
                             <td style="padding: 20px 25px; text-align: center;">
                                 <div style="font-size: 14px; font-weight: 700; color: #2d3748;">Rp{{ number_format($grandTotal, 0, ',', '.') }}</div>
-                                @if($totalDenda > 0)
-                                    <small style="color: #e53e3e; font-size: 10px;">+ Denda: Rp{{ number_format($totalDenda, 0, ',', '.') }}</small>
-                                @endif
                             </td>
                             <td style="padding: 20px 25px; text-align: center;">
-                                @if($statusSewa == 'disetujui')
+                                @if(in_array($statusSewa, ['disetujui', 'selesai']))
                                     <span style="background: #c6f6d5; color: #22543d; padding: 5px 12px; border-radius: 50px; font-size: 10px; font-weight: 700; text-transform: uppercase;">✔ Disetujui</span>
                                 @else
                                     <span style="background: #feebc8; color: #744210; padding: 5px 12px; border-radius: 50px; font-size: 10px; font-weight: 700; text-transform: uppercase;">● {{ $statusSewa }}</span>
                                 @endif
                             </td>
                             <td style="padding: 20px 25px; text-align: center;">
-                                @if(in_array($statusBayar, ['lunas', 'dibayar']))
+                                @if($statusBayar == 'LUNAS')
                                     <span style="background: #38a169; color: white; padding: 5px 12px; border-radius: 8px; font-size: 10px; font-weight: 800;">LUNAS</span>
                                 @else
                                     <span style="background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; padding: 5px 12px; border-radius: 8px; font-size: 10px; font-weight: 800;">PENDING</span>

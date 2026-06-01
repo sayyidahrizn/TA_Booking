@@ -85,6 +85,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Cetak Bukti
     Route::get('/penyewaan/bukti/{kode_booking}', [UserPenyewaan::class, 'cetakBukti'])->name('user.penyewaan.bukti');
+    Route::get('/admin/pembayaran/cetak/{kode_booking}',[App\Http\Controllers\Admin\PenyewaanController::class, 'cetakPembayaran'])->name('admin.pembayaran.cetak');
 
     //pembatalan penyewaan
     Route::post('/penyewaan/batal/{kode}', [UserPenyewaan::class, 'batalGroup'])
@@ -129,9 +130,13 @@ Route::prefix('admin')->middleware(['auth', 'isAdmin'])->group(function () {
     // Rute export & index umum
     Route::get('/laporan/pdf', [LaporanController::class, 'downloadPDF'])->name('admin.laporan.pdf');
     Route::get('/laporan/excel', [LaporanController::class, 'downloadExcel'])->name('admin.laporan.excel');
-    Route::get('/laporan', [LaporanController::class, 'index'])->name('admin.laporan.index');
+    Route::get('/laporan', [LaporanController::class, 'index'])->name('admin.laporan');
 
     Route::post('/pengembalian/konfirmasi/{id}',[AdminPengembalianController::class, 'konfirmasiPembayaran'])->name('admin.pengembalian.konfirmasi');
+
+    Route::get('/pengembalian/bukti-denda/{id}', [AdminPengembalianController::class, 'buktiDenda'])->name('admin.pengembalian.bukti');
+
+    Route::post('/denda/tunai/{id}',[PembayaranController::class, 'bayarTunai'])->name('admin.denda.tunai');
 
     });
 

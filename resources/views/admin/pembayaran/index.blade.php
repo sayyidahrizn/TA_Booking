@@ -154,11 +154,11 @@
     .text-primary-custom { color: #2563eb; }
     .table-responsive { overflow-x: auto; }
 
-    /* PAGINATION STYLE (Sesuai Halaman Fasilitas) */
+    /* PAGINATION STYLE */
     .fsl-pagination-wrapper { 
         margin-top: 25px; 
         display: flex !important; 
-        justify-content: space-between !important; /* Paksa Kiri-Kanan */
+        justify-content: space-between !important; 
         align-items: center !important; 
         width: 100%;
         padding: 0 5px;
@@ -169,17 +169,12 @@
         color: #64748b; 
     }
 
-    /* Reset default Bootstrap pagination */
     .fsl-pagination-nav .pagination {
         display: flex !important;
         list-style: none !important;
         padding: 0 !important;
         margin: 0 !important;
         gap: 5px !important;
-    }
-
-    .fsl-pagination-nav .page-item {
-        margin: 0 !important;
     }
 
     .fsl-pagination-nav .page-link {
@@ -196,33 +191,15 @@
         font-size: 14px !important;
         font-weight: 600 !important;
         transition: all 0.2s ease !important;
-        padding: 0 !important;
     }
 
     .fsl-pagination-nav .page-item.active .page-link {
         background-color: #2563eb !important;
         color: #ffffff !important;
         border-color: #2563eb !important;
-        box-shadow: 0 4px 10px rgba(37,99,235,0.2) !important;
     }
 
-    .fsl-pagination-nav .page-item.disabled .page-link {
-        background-color: #f8fafc !important;
-        color: #cbd5e1 !important;
-        border-color: #e2e8f0 !important;
-        cursor: not-allowed !important;
-    }
-    
-    /* Menghilangkan panah bawaan jika perlu atau merapikannya */
-    .fsl-pagination-nav .page-link:hover:not(.active):not(.disabled) {
-        background-color: #f1f5f9 !important;
-    }
-    /* Mengecilkan input group agar pas di dalam baris tabel */
-    .input-group-sm > .form-control {
-        font-size: 12px;
-        height: 32px;
-    }
-    /* Style Baru untuk Input Nominal di Tabel */
+    /* Style Input Nominal */
     .action-input-wrapper {
         display: flex;
         align-items: center;
@@ -231,12 +208,12 @@
         border-radius: 8px;
         padding: 2px 4px;
         transition: all 0.3s ease;
-        width: 180px; /* Ukuran pas untuk kolom aksi */
+        width: 180px;
         margin: 0 auto;
     }
 
     .action-input-wrapper:focus-within {
-        border-color: #10b981; /* Hijau agar senada dengan tombol simpan */
+        border-color: #10b981;
         box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
     }
 
@@ -245,7 +222,6 @@
         font-weight: 700;
         color: #94a3b8;
         padding-left: 8px;
-        user-select: none;
     }
 
     .nominal-input {
@@ -257,7 +233,6 @@
         padding: 6px 8px !important;
         width: 100%;
         outline: none !important;
-        box-shadow: none !important;
     }
 
     .btn-save-nominal {
@@ -269,34 +244,19 @@
         font-size: 11px;
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.2s;
         display: flex;
         align-items: center;
         gap: 4px;
     }
 
-    .btn-save-nominal:hover {
-        background-color: #059669;
-    }
-
-    /* Hilangkan panah up/down di input number */
-    .nominal-input::-webkit-outer-spin-button,
-    .nominal-input::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-    }
-    .btn-success.btn-sm {
-        padding: 2px 10px;
-        font-size: 11px;
-    }
+    .btn-save-nominal:hover { background-color: #059669; }
 </style>
 
 <div class="container-fluid py-4">
     {{-- HEADER --}}
     <div class="page-header">
-        <h4 class="page-title"></h4>
+        <h4 class="page-title">Kelola Pembayaran</h4>
 
-        {{-- SEARCH & FILTER --}}
         <form method="GET" action="" class="filter-form">
             <input type="text" name="search" class="form-control" placeholder="Cari Nama atau NIK..." value="{{ request('search') }}">
 
@@ -325,24 +285,62 @@
                         <th class="text-end">PEMBAYARAN</th>
                         <th class="text-end">SISA TAGIHAN</th>
                         <th class="text-center">STATUS PEMBAYARAN</th>
-                        <th class="text-center" width="10%">AKSI</th>
+                        <th class="text-center" width="15%">AKSI</th>
+                        <th class="text-center" width="10%">CETAK</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($pembayarans as $kode => $items)
                         @php
                             $first = $items->first();
+
                             $totalTagihan = $items->total_tagihan ?? 0;
                             $totalBayar = $items->total_bayar ?? 0;
-                            $sisaTagihan = $items->sisa_tagihan ?? 0;
+
+                            $sisaTagihan = max($items->sisa_tagihan ?? 0, 0);
+
                             $statusPembayaran = $items->status_custom ?? 'pending';
 
-                            // Ambil data pembayaran yang statusnya masih pending dan tipenya tunai
-                            // agar admin bisa melakukan input nominal
-                            $pembayaranPending = $items->flatMap->pembayaran
-                                                ->where('status_pembayaran', 'pending')
-                                                ->where('metode_pembayaran', 'tunai')
-                                                ->first();
+                            // =========================
+                            // SEMUA PEMBAYARAN
+                            // =========================
+                            $allPembayaran = $items->flatMap(function($item){
+                                return $item->pembayaran;
+                            });
+
+                            // =========================
+                            // PEMBAYARAN TERAKHIR
+                            // =========================
+                            $lastPembayaran = $allPembayaran
+                                ->sortByDesc('created_at')
+                                ->first();
+
+                            // =========================
+                            // CEK APAKAH ADA TUNAI
+                            // =========================
+                            $adaPembayaranTunai = $allPembayaran
+                                ->where('metode_pembayaran', 'tunai')
+                                ->count() > 0;
+
+                            // =========================
+                            // METODE UTAMA
+                            // =========================
+                            $metode = $adaPembayaranTunai ? 'tunai' : 'midtrans';
+
+                            // =========================
+                            // PEMBAYARAN PENDING TUNAI
+                            // =========================
+                            $pembayaranPending = $allPembayaran
+                                ->where('status_pembayaran', 'pending')
+                                ->where('metode_pembayaran', 'tunai')
+                                ->first();
+
+                            // =========================
+                            // PEMBAYARAN TUNAI
+                            // =========================
+                            $pembayaranTunai = $allPembayaran
+                                ->where('metode_pembayaran', 'tunai')
+                                ->first();
                         @endphp
                         <tr>
                             <td class="text-center fw-bold text-muted">
@@ -377,44 +375,55 @@
                             </td>
                             <td class="text-center">
                                 <span class="status-badge {{ $statusPembayaran == 'lunas' ? 'status-lunas' : 'status-pending' }}">
-                                    {{ $statusPembayaran }}
+                                    {{ strtoupper($statusPembayaran) }}
                                 </span>
                             </td>
+
+                            {{-- KOLOM AKSI --}}
                             <td class="text-center">
-                                @if($statusPembayaran != 'lunas' && $pembayaranPending)
+                                @if($metode == 'tunai' && $statusPembayaran != 'lunas' && $pembayaranPending)
                                     <form action="{{ route('admin.pembayaran.verifikasi', $pembayaranPending->id_pembayaran) }}" method="POST">
                                         @csrf
                                         <div class="action-input-wrapper">
                                             <span class="currency-symbol">Rp</span>
-                                            
-                                            <input type="text" 
-                                                class="nominal-input" 
-                                                placeholder="0" 
-                                                onkeyup="formatRupiah(this)"
-                                                required>
-                                            
+                                            <input type="text" class="nominal-input" placeholder="0" onkeyup="formatRupiah(this)" required>
                                             <input type="hidden" name="jumlah_bayar" class="raw-nominal">
-
                                             <button type="submit" class="btn-save-nominal">
                                                 <i class="fas fa-check"></i>
                                                 <span>Simpan</span>
                                             </button>
                                         </div>
                                     </form>
-                                @elseif($statusPembayaran == 'lunas')
-                                    <div class="text-success fw-bold" style="font-size: 12px;">
+                                @elseif($metode == 'midtrans')
+                                    <span class="badge bg-light text-muted border" style="font-weight:500; font-size:11px; padding:5px 10px;">
+                                        <i class="fas fa-university mr-1"></i> Transfer
+                                    </span>
+                                @elseif($metode == 'tunai' && $statusPembayaran == 'lunas')
+                                    <span class="badge bg-success text-white" style="font-weight:500; font-size:11px; padding:5px 10px;">
+                                        Tunai
+                                    </span>
+                                    <div class="text-success fw-bold mt-1" style="font-size:12px;">
                                         <i class="fas fa-check-circle mr-1"></i> Selesai
                                     </div>
                                 @else
-                                    <span class="badge bg-light text-muted border" style="font-weight: 500; font-size: 11px; padding: 5px 10px;">
-                                        <i class="fas fa-external-link-alt mr-1"></i> Midtrans
-                                    </span>
+                                    <span style="color:#94a3b8; font-size:12px;">-</span>
+                                @endif
+                            </td>
+
+                            {{-- KOLOM CETAK --}}
+                            <td class="text-center">
+                                @if($metode == 'tunai')
+                                    <a href="{{ route('admin.pembayaran.cetak', $first->kode_booking) }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-print"></i> Cetak
+                                    </a>
+                                @else
+                                    <span style="color:#94a3b8; font-size:12px;">-</span>
                                 @endif
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="text-center py-5">
+                            <td colspan="10" class="text-center py-5">
                                 <p class="text-muted mb-0 small">Data tidak ditemukan.</p>
                             </td>
                         </tr>
@@ -429,7 +438,6 @@
         <div class="fsl-pagination-info">
             Menampilkan <strong>{{ $pembayarans->firstItem() ?? 0 }} - {{ $pembayarans->lastItem() ?? 0 }}</strong> dari <strong>{{ $pembayarans->total() }}</strong> data
         </div>
-
         <div class="fsl-pagination-nav">
             {{ $pembayarans->appends(request()->query())->links('pagination::bootstrap-4') }}
         </div>
@@ -438,29 +446,24 @@
 
 <script>
 function formatRupiah(element) {
-    // 1. Ambil angka saja
     let number_string = element.value.replace(/[^,\d]/g, '').toString();
     let split = number_string.split(',');
     let sisa = split[0].length % 3;
     let rupiah = split[0].substr(0, sisa);
     let ribuan = split[0].substr(sisa).match(/\d{3}/gi);
 
-    // 2. Tambahkan titik jika ribuan
     if (ribuan) {
         let separator = sisa ? '.' : '';
         rupiah += separator + ribuan.join('.');
     }
 
     rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
-    
-    // 3. Cetak ke layar
     element.value = rupiah;
 
-    // 4. Update hidden input (hapus semua titik agar jadi angka murni)
-    let rawValue = number_string; 
+    // Hapus titik untuk input hidden agar bisa diproses backend sebagai angka
+    let rawValue = number_string.replace(/\./g, ''); 
     element.closest('form').querySelector('.raw-nominal').value = rawValue;
 }
 </script>
 
 @endsection
-

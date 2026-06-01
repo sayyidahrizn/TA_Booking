@@ -34,7 +34,6 @@ class RegisteredUserController extends Controller
             'no_hp' => ['required', 'max:20'],
             'alamat' => ['required'],
         ]);
-
         $user = User::create([
             'name' => $request->nama,
             'nik' => $request->nik,
@@ -44,9 +43,7 @@ class RegisteredUserController extends Controller
             'no_hp' => $request->no_hp,
             'alamat' => $request->alamat,
         ]);
-
         Auth::login($user);
-
         return redirect()->route('user.dashboard');
     }
 }

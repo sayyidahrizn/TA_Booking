@@ -229,7 +229,7 @@ class PembayaranController extends Controller
                 
                 if ($denda) {
                     $denda->update(['status_denda' => 'lunas']);
-                    Penyewaan::where('id_penyewaan', $denda->id_penyewaan)->update(['status_sewa' => 'selesai']);
+                    Penyewaan::where('kode_booking', $denda->penyewaan->kode_booking)->update(['status_sewa' => 'selesai','status_pembayaran' => 'lunas']);
 
                     // KIRIM WA DENDA
                     $user = $denda->penyewaan->user;
@@ -262,7 +262,7 @@ class PembayaranController extends Controller
                     $denda = Denda::where('kode_pembayaran', $idOrKode)->first();
                     if ($denda) {
                         $denda->update(['status_denda' => 'lunas']);
-                        Penyewaan::where('id_penyewaan', $denda->id_penyewaan)->update(['status_sewa' => 'selesai']);
+                        Penyewaan::where('kode_booking', $denda->penyewaan->kode_booking)->update(['status_sewa' => 'selesai','status_pembayaran' => 'lunas']);
                     }
                 } else {
                     Pembayaran::where('kode_pembayaran', $idOrKode)->update(['status_pembayaran' => 'berhasil', 'tanggal_bayar' => now()]);
@@ -276,4 +276,5 @@ class PembayaranController extends Controller
             return back()->with('error', 'Gagal mengecek: ' . $e->getMessage());
         }
     }
+
 }

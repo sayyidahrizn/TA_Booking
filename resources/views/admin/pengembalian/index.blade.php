@@ -3,701 +3,464 @@
 @section('page-title', 'Validasi Pengembalian')
 
 @section('content')
-
-<!-- Import Fonts & Assets -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <style>
-    .admin-wrapper-inner{
-        font-family: 'Inter', sans-serif;
-        color: #1e293b;
+    .admin-wrapper-inner { font-family: 'Inter', sans-serif; padding: 10px; }
+    .table-container { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; }
+    .table-responsive { overflow-x: auto; }
+    .custom-table { width: 100%; min-width: 1700px; border-collapse: collapse; }
+
+    .custom-table th {
+        background: #f8fafc; font-size: 11px; text-transform: uppercase;
+        padding: 14px; text-align: center;
     }
 
-    .table-container{
-        background: #fff;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-        overflow: hidden;
-    }
-
-    .table-responsive{
-        width: 100%;
-        overflow-x: auto;
-    }
-
-    .custom-table{
-        width: 100%;
-        min-width: 1500px;
-        border-collapse: collapse;
-    }
-
-    .custom-table th{
-        background: #f8fafc;
-        color: #64748b;
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        padding: 14px 10px;
-        border-bottom: 2px solid #edf2f7;
-        white-space: nowrap;
-        text-align: center;
-    }
-
-    .custom-table td{
-        padding: 12px 10px;
-        font-size: 13px;
+    .custom-table td {
+        padding: 12px; font-size: 13px;
         border-bottom: 1px solid #f1f5f9;
         text-align: center;
-        vertical-align: middle;
-        white-space: nowrap;
     }
 
-    .custom-table tbody tr:hover{
-        background: #f8fafc;
-    }
+    .img-preview { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; }
 
-    /* IMAGE */
-    .img-preview{
-        width: 55px;
-        height: 55px;
-        border-radius: 8px;
-        object-fit: cover;
-        border: 1px solid #e2e8f0;
-        transition: .2s;
-    }
-
-    .img-preview:hover{
-        transform: scale(1.08);
-    }
-
-    /* INPUT */
-    .input-sm{
-        width: 100%;
-        max-width: 130px;
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        padding: 7px 10px;
+    .input-sm {
+        width: 100%; border: 1px solid #cbd5e1;
+        border-radius: 8px; padding: 6px;
         font-size: 12px;
-        outline: none;
     }
 
-    .input-sm:focus{
-        border-color: #7c3aed;
+    .badge-status {
+        padding: 4px 10px; border-radius: 8px;
+        font-size: 11px; font-weight: 700;
     }
 
-    /* BADGE */
-    .badge-status{
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 11px;
-        font-weight: 700;
-        display: inline-block;
+    .bg-danger-soft { background: #fee2e2; color: #991b1b; }
+    .bg-success-soft { background: #dcfce7; color: #166534; }
+    .bg-warning-soft { background: #fef3c7; color: #92400e; }
+    .bg-primary-soft { background: #dbeafe; color: #1d4ed8; }
+
+    .btn-action {
+        padding: 8px 10px; border-radius: 8px;
+        font-size: 12px; font-weight: 700;
+        width: 100%;
+        cursor: pointer;
+        border: none;
     }
 
-    .bg-danger-soft{
-        background: #fee2e2;
-        color: #991b1b;
-    }
+    .btn-primary-custom { background: #7c3aed; color: white; }
+    .btn-disabled { background: #e2e8f0; color: #94a3b8; }
 
-    .bg-success-soft{
-        background: #dcfce7;
-        color: #166534;
-    }
-
-    .bg-warning-soft{
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .bg-secondary-soft{
-        background: #e2e8f0;
-        color: #475569;
-    }
-
-    /* TOTAL TAGIHAN */
-    .tagihan-live{
-        color: #7c3aed;
-        font-weight: 800;
-        font-size: 11px;
+    .btn-print {
+        background: #0f172a;
+        color: white;
         margin-top: 5px;
-        display: block;
+        display: inline-block;
+        text-decoration: none;
+        padding: 8px;
+        border-radius: 8px;
+        width: 100%;
     }
 
-    /* BUTTON */
-    .btn-action{
-        padding: 8px 12px;
+    .denda-input-wrapper {
+        display: none;
+        align-items: center;
+        gap: 5px;
+        border: 1px solid #cbd5e1;
+        padding: 5px;
         border-radius: 8px;
-        font-weight: 600;
+        margin-top: 5px;
+    }
+
+    .cash-input-wrapper {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+    }
+
+    .btn-save-inline {
+        background: #10b981;
+        color: white;
+        border: none;
+        padding: 6px 10px;
+        border-radius: 6px;
         font-size: 12px;
         cursor: pointer;
-        transition: .2s;
+    }
+    .action-input-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        justify-content: center;
+    }
+    .currency-symbol {
+        font-weight: 700;
+        color: #334155;
+    }
+    .nominal-input {
+        width: 110px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 6px 8px;
+        font-size: 12px;
+    }
+    .btn-save-nominal {
         border: none;
-        width: 100%;
-        display: block;
-        text-align: center;
-    }
-
-    .btn-primary-custom{
-        background: #7c3aed;
-        color: #fff;
-    }
-
-    .btn-primary-custom:hover{
-        background: #6d28d9;
-    }
-
-    .btn-success-custom{
         background: #16a34a;
         color: #fff;
-        margin-top: 5px;
-    }
-
-    .btn-success-custom:hover{
-        background: #15803d;
-    }
-
-    .btn-disabled{
-        background: #cbd5e1;
-        color: #64748b;
-        cursor: not-allowed;
-        pointer-events: none;
-        margin-top: 5px;
-    }
-
-    .empty-data{
-        padding: 50px;
-        text-align: center;
-        color: #94a3b8;
-    }
-
-    .kode-booking{
-        display: block;
-        margin-top: 3px;
-        color: #4f46e5;
-        font-size: 11px;
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 12px;
         font-weight: 700;
+        cursor: pointer;
     }
 
-    .booking-group-start td{
-    border-top: 2px solid #cbd5e1 !important;
-    background: #fcfcff;
-    }
+    /* Container utama pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    list-style: none;
+    padding: 20px;
+    gap: 8px;
+}
 
-    .booking-empty{
-        color: transparent;
-    }
+/* Kotak angka/link */
+.pagination li a, 
+.pagination li span {
+    display: inline-block;
+    padding: 8px 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    color: #64748b;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    background: white;
+}
 
-    @media(max-width:768px){
+/* Saat di-hover */
+.pagination li a:hover {
+    background-color: #f1f5f9;
+    border-color: #7c3aed;
+    color: #7c3aed;
+}
 
-        .custom-table th,
-        .custom-table td{
-            font-size: 12px;
-            padding: 10px 8px;
-        }
+/* Halaman yang sedang aktif (ungu) */
+.pagination li.active span {
+    background-color: #7c3aed; /* Warna ungu sesuai tema kamu */
+    border-color: #7c3aed;
+    color: white;
+    font-weight: bold;
+}
 
-        .btn-action{
-            font-size: 11px;
-        }
-    }
+/* Link yang tidak bisa diklik (Disabled) */
+.pagination li.disabled span {
+    background-color: #f8fafc;
+    color: #cbd5e1;
+    cursor: not-allowed;
+}
+
 </style>
 
 <div class="admin-wrapper-inner">
+    @if (session('success'))
+        <div class="alert alert-success" style="margin-bottom:12px;">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @if (session('error'))
+        <div class="alert alert-danger" style="margin-bottom:12px;">
+            {{ session('error') }}
+        </div>
+    @endif
+    
+    @if ($errors->any())
+        <div class="alert alert-danger">
+            <ul>
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
     <div class="table-container">
 
-        <!-- Main Validation Form -->
-        <form action="{{ route('admin.pengembalian.validasi') }}" method="POST">
+        <form method="POST" action="{{ route('admin.pengembalian.validasi') }}">
             @csrf
 
             <div class="table-responsive">
-
                 <table class="custom-table">
 
                     <thead>
                         <tr>
                             <th>No</th>
-                            <th>Periode Sewa</th>
+                            <th>Periode</th>
                             <th>Penyewa</th>
                             <th>Fasilitas</th>
                             <th>Bukti</th>
                             <th>Tgl Kembali</th>
-                            <th>Denda Keterlambatan</th>
-                            <th>Denda Kerusakan</th>
+                            <th>Denda Telat</th>
+                            <th>Denda Rusak</th>
                             <th>Catatan</th>
                             <th>Status</th>
+                            <th>Bayar Tunai</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
 
-                   <tbody>
-
+                    <tbody>
                         @php $no = 1; @endphp
 
-                        @forelse($data as $tanggal => $items)
+                        @forelse($data as $kodeBooking => $items)
 
                             @php
-                                $lastBooking = null;
+                                $first = $items->first();
+                                $rowCount = count($items);
+                                $groupStatusSewa = $items->pluck('penyewaan.status_sewa')->filter()->unique();
+                                $isMenungguDenda = $groupStatusSewa->contains('menunggu_pembayaran_denda');
+                                $isSelesaiSewa = $groupStatusSewa->every(fn($s) => $s === 'selesai');
+                                $dendaGroup = $items->pluck('penyewaan.denda')
+                                    ->flatten()
+                                    ->sortByDesc('id_denda')
+                                    ->first();
+                                $pembayaran = $first->penyewaan->pembayaran
+                                    ->where('jenis_pembayaran', 'pelunasan')
+                                    ->last();
+                                $isRequestTunai = $dendaGroup && str_starts_with((string) $dendaGroup->kode_pembayaran, 'TUNAI-REQ-');
                             @endphp
 
-                            @foreach($items as $item)
+                            @foreach($items as $i => $item)
 
-                            @php
-                                $denda = $item->penyewaan->denda;
+                                @php
+                                    $harga = $item->penyewaan->fasilitas->harga_benda ?? 0;
+                                    $dendaTelat = $item->denda_telat_otomatis ?? 0;
+                                @endphp
 
-                                $currentBooking = $item->penyewaan->kode_penyewaan;
+                                <tr>
 
-                                $isNewBooking = $lastBooking != $currentBooking;
+                                    @if($i === 0)
+                                        <td rowspan="{{ $rowCount }}">{{ $no++ }}</td>
 
-                                $lastBooking = $currentBooking;
-                            @endphp
+                                        <td rowspan="{{ $rowCount }}">
+                                            {{ \Carbon\Carbon::parse($first->penyewaan->tgl_mulai)->format('d M Y') }}
+                                            <br>
+                                            s/d
+                                            {{ \Carbon\Carbon::parse($first->penyewaan->tgl_selesai)->format('d M Y') }}
+                                        </td>
 
-                            <tr class="{{ $isNewBooking ? 'booking-group-start' : '' }}">
-
-                                {{-- NO --}}
-                                <td>
-                                    @if($isNewBooking)
-                                        {{ $no++ }}
+                                        <td rowspan="{{ $rowCount }}">
+                                            {{ $first->penyewaan->user->name ?? '-' }}
+                                            <br>
+                                            <small>{{ $kodeBooking }}</small>
+                                        </td>
                                     @endif
-                                </td>
 
-                                {{-- PERIODE --}}
-                                <td style="text-align:left; min-width:140px;">
+                                    <td>{{ $item->penyewaan->fasilitas->nama_fasilitas ?? '-' }}</td>
 
-                                    {{-- @if($isNewBooking) --}}
+                                    <td>
+                                        <a href="{{ asset('storage/'.$item->bukti_pengembalian) }}" target="_blank">
+                                            <img src="{{ asset('storage/'.$item->bukti_pengembalian) }}" class="img-preview">
+                                        </a>
+                                    </td>
 
-                                        <strong>
-                                            {{ \Carbon\Carbon::parse($item->penyewaan->tgl_mulai)->translatedFormat('d M Y') }}
-                                        </strong>
-                                        <br>
-                                        <small>
-                                            s/d {{ \Carbon\Carbon::parse($item->penyewaan->tgl_selesai)->translatedFormat('d M Y') }}
-                                        </small>
+                                    @if($i === 0)
+                                        <td rowspan="{{ $rowCount }}">
+                                            {{ \Carbon\Carbon::parse($first->tanggal_pengembalian)->format('d/m/Y') }}
+                                        </td>
+                                    @endif
 
-                                    {{-- @endif --}}
+                                    <td>
+                                        <span class="badge-status {{ $dendaTelat > 0 ? 'bg-danger-soft' : 'bg-success-soft' }}">
+                                            {{ $dendaTelat > 0 ? 'Rp '.number_format($dendaTelat,0,',','.') : 'Tepat Waktu' }}
+                                        </span>
+                                    </td>
 
-                                </td>
+                                    <td>
+                                        <select name="jenis_kerusakan[{{ $item->id }}]"
+                                                onchange="handleDenda(this,'{{ $item->id }}',{{ $harga }})"
+                                                class="input-sm">
 
-                                {{-- PENYEWA --}}
-                                <td style="text-align:left; min-width:180px;">
+                                            <option value="tidak_rusak">Tidak Rusak</option>
+                                            <option value="ringan">Rusak Ringan</option>
+                                            <option value="berat">Rusak Berat</option>
+                                        </select>
 
-                                    {{-- @if($isNewBooking) --}}
-
-                                        <div style="font-weight:700; color:#1e293b;">
-                                            {{ $item->penyewaan->user->name ?? '-' }}
+                                        <div id="denda_{{ $item->id }}" class="denda-input-wrapper">
+                                            <span>Rp</span>
+                                            <input type="text"
+                                                class="input-sm rupiah"
+                                                name="denda_rusak[{{ $item->id }}]"
+                                                id="input_{{ $item->id }}"
+                                                value="0">
                                         </div>
+                                    </td>
 
-                                        <span class="kode-booking">
-                                            {{ $item->penyewaan->kode_penyewaan ?? '-' }}
-                                        </span>
+                                    <td>
+                                        <input type="text" name="catatan_admin[{{ $item->id }}]" class="input-sm">
+                                    </td>
 
-                                    {{-- @endif --}}
+                                    @if($i === 0)
+                                        <td rowspan="{{ $rowCount }}">
+                                            @if($dendaGroup && $dendaGroup->status_denda == 'lunas')
+                                                <span class="badge-status bg-success-soft">LUNAS</span>
+                                            @elseif($isRequestTunai)
+                                                <span class="badge-status bg-primary-soft">MENUNGGU VERIFIKASI TUNAI</span>
+                                            @elseif($dendaGroup)
+                                                <span class="badge-status bg-warning-soft">MENUNGGU PEMBAYARAN</span>
+                                            @else
+                                                <span class="badge-status bg-danger-soft">BELUM DITAGIH</span>
+                                            @endif
+                                        </td>
 
-                                </td>
+                                        {{-- 💰 BAYAR TUNAI (TIDAK DIHAPUS) --}}
+                                        <td rowspan="{{ $rowCount }}">
+                                            @if(
+                                                $dendaGroup &&
+                                                $dendaGroup->status_denda == 'belum_bayar' &&
+                                                $isRequestTunai
+                                            )
+                                                <form action="{{ route('admin.pengembalian.konfirmasi', $dendaGroup->id_denda) }}" method="POST">
+                                                    @csrf
+                                                    <div class="action-input-wrapper">
+                                                        <span class="currency-symbol">Rp</span>
+                                                        <input type="text" class="nominal-input" placeholder="0" onkeyup="formatRupiah(this)" required>
+                                                        <input type="hidden" name="jumlah_dibayar" class="raw-nominal">
+                                                        <button type="submit" class="btn-save-nominal">Simpan</button>
+                                                    </div>
+                                                </form>
+                                            @else
+                                                -
+                                            @endif
+                                        </td>
 
-                                {{-- FASILITAS --}}
-                                <td style="font-weight:600;">
-                                    {{ $item->penyewaan->fasilitas->nama_fasilitas }}
-                                </td>
+                                        {{-- 🧾 AKSI (TERMASUK CETAK BUKTI) --}}
+                                        <td rowspan="{{ $rowCount }}">
+                                            {{-- BELUM ADA DENDA --}}
+                                            @if($isMenungguDenda)
+                                                <button type="button" class="btn-action btn-disabled" disabled>
+                                                    Menunggu Pembayaran Denda
+                                                </button>
 
-                                {{-- BUKTI --}}
-                                <td>
-                                    <a href="{{ asset('storage/'.$item->bukti_pengembalian) }}" target="_blank">
-                                        <img src="{{ asset('storage/'.$item->bukti_pengembalian) }}" class="img-preview">
-                                    </a>
-                                </td>
+                                            @elseif($isSelesaiSewa && !$dendaGroup)
+                                                <button type="button" class="btn-action btn-disabled" disabled>
+                                                    ✓ Selesai
+                                                </button>
 
-                                {{-- TANGGAL --}}
-                                <td>
-                                    {{ \Carbon\Carbon::parse($item->tanggal_pengembalian)->format('d/m/Y') }}
-                                </td>
+                                            @elseif(!$dendaGroup)
 
-                                {{-- DENDA TELAT --}}
-                                <td>
+                                                <button type="submit" 
+                                                        name="submit_booking" 
+                                                        value="{{ $kodeBooking }}" 
+                                                        class="btn-action btn-primary-custom">
+                                                    Selesaikan & Tagih
+                                                </button>
 
-                                    @if($item->denda_telat_otomatis > 0)
+                                            {{-- SUDAH LUNAS --}}
+                                            @elseif($dendaGroup->status_denda == 'lunas')
 
-                                        <span class="badge-status bg-danger-soft">
-                                            Rp {{ number_format($item->denda_telat_otomatis,0,',','.') }}
-                                        </span>
+                                                <button type="button" class="btn-action bg-success-soft" style="color:#166534;" disabled>
+                                                    ✓ Selesai
+                                                </button>
 
-                                        <div style="font-size:10px; color:#dc2626; margin-top:3px;">
-                                            Telat {{ $item->hari_telat }} Hari
-                                        </div>
+                                                <a href="{{ route('admin.pengembalian.bukti', $dendaGroup->id_denda) }}"
+                                                target="_blank"
+                                                class="btn-print">
+                                                    Cetak Bukti
+                                                </a>
 
-                                    @else
+                                            {{-- MENUNGGU MIDTRANS --}}
+                                            @elseif(
+                                                $pembayaran &&
+                                                $pembayaran->metode_pembayaran == 'midtrans' &&
+                                                $pembayaran->status_pembayaran == 'pending'
+                                            )
 
-                                        <span class="badge-status bg-success-soft">
-                                            Tepat Waktu
-                                        </span>
+                                                <button type="button" class="btn-action btn-disabled" disabled>
+                                                    Menunggu Pembayaran Midtrans
+                                                </button>
 
+                                            {{-- DENDA BELUM DIBAYAR --}}
+                                            @elseif($dendaGroup->status_denda == 'belum_bayar')
+                                                <button type="button" class="btn-action btn-disabled" disabled>
+                                                    Menunggu Pembayaran Denda
+                                                </button>
+
+                                            @else
+
+                                                <button type="button" class="btn-action btn-disabled" disabled>
+                                                    Diproses...
+                                                </button>
+
+                                            @endif
+
+                                        </td>
                                     @endif
 
-                                </td>
-
-                                {{-- DENDA KERUSAKAN --}}
-                                {{-- DENDA KERUSAKAN --}}
-                                <td>
-
-                                    <div style="display:flex; flex-direction:column; gap:6px; align-items:center;">
-
-                                        @php
-                                            $hargaFasilitas = $item->penyewaan->fasilitas->harga;
-                                        @endphp
-
-                                        @if(!$denda)
-
-                                            <select
-                                                name="jenis_kerusakan[{{ $item->id }}]"
-                                                class="input-sm"
-                                                onchange="setJenisKerusakan(
-                                                    this,
-                                                    {{ $item->id }},
-                                                    {{ $item->denda_telat_otomatis ?? 0 }},
-                                                    {{ $hargaFasilitas }}
-                                                )"
-                                            >
-                                                <option value="">Pilih Kondisi</option>
-
-                                                <option value="tidak_rusak">
-                                                    Tidak Rusak
-                                                </option>
-
-                                                <option value="ringan">
-                                                    Rusak Ringan
-                                                </option>
-
-                                                <option value="berat">
-                                                    Rusak Berat / Hilang
-                                                </option>
-                                            </select>
-
-                                            <input
-                                                type="text"
-                                                class="input-sm"
-                                                id="input_ringan_{{ $item->id }}"
-                                                placeholder="Input biaya..."
-                                                style="display:none;"
-                                                onkeyup="
-                                                    formatInputRupiah(this, 'denda_real_{{ $item->id }}');
-                                                    hitungTotalTagihan(
-                                                        {{ $item->id }},
-                                                        {{ $item->denda_telat_otomatis ?? 0 }}
-                                                    );
-                                                "
-                                            >
-
-                                        @else
-
-                                            <input
-                                                type="text"
-                                                class="input-sm"
-                                                disabled
-                                                value="Rp {{ number_format($denda->biaya_kerusakan ?? 0,0,',','.') }}"
-                                            >
-
-                                        @endif
-
-                                        <input
-                                            type="hidden"
-                                            name="denda_rusak[{{ $item->id }}]"
-                                            id="denda_real_{{ $item->id }}"
-                                            value="{{ $denda->biaya_kerusakan ?? 0 }}"
-                                        >
-
-                                        <span class="tagihan-live" id="total_tagihan_{{ $item->id }}">
-                                            Total:
-                                            Rp {{
-                                                number_format(
-                                                    ($item->denda_telat_otomatis ?? 0)
-                                                    + ($denda->biaya_kerusakan ?? 0),
-                                                    0,
-                                                    ',',
-                                                    '.'
-                                                )
-                                            }}
-                                        </span>
-
-                                    </div>
-
-                                </td>
-
-                                {{-- CATATAN --}}
-                                <td>
-
-                                    @if(!$denda)
-
-                                        <input
-                                            type="text"
-                                            name="catatan_admin[{{ $item->id }}]"
-                                            class="input-sm"
-                                            placeholder="Keterangan..."
-                                        >
-
-                                    @else
-
-                                        <input
-                                            type="text"
-                                            class="input-sm"
-                                            value="{{ $denda->keterangan_kerusakan }}"
-                                            disabled
-                                        >
-
-                                    @endif
-
-                                </td>
-
-                                {{-- STATUS --}}
-                                <td>
-
-                                    {{-- @if($isNewBooking) --}}
-
-                                        @if(!$denda)
-
-                                            <span class="badge-status bg-warning-soft">
-                                                Belum Divalidasi
-                                            </span>
-
-                                        @elseif($denda->status_denda == 'belum_bayar')
-
-                                            <span class="badge-status bg-warning-soft">
-                                                Belum Dibayar
-                                            </span>
-
-                                        @elseif($denda->status_denda == 'pending')
-
-                                            <span class="badge-status bg-secondary-soft">
-                                                Menunggu Konfirmasi
-                                            </span>
-
-                                        @elseif($denda->status_denda == 'lunas')
-
-                                            <span class="badge-status bg-success-soft">
-                                                Lunas
-                                            </span>
-
-                                        @endif
-
-                                    {{-- @endif --}}
-
-                                </td>
-
-                                {{-- AKSI --}}
-                                <td style="min-width:160px;">
-
-                                    {{-- @if($isNewBooking) --}}
-
-                                        @if(!$denda)
-
-                                            <button
-                                                type="submit"
-                                                class="btn-action btn-primary-custom"
-                                            >
-                                                Selesaikan & Tagih
-                                            </button>
-
-                                        @elseif($denda->status_denda == 'belum_bayar')
-
-                                            <button
-                                                type="button"
-                                                class="btn-action btn-disabled"
-                                            >
-                                                Menunggu Pembayaran User
-                                            </button>
-
-                                        @elseif($denda->status_denda == 'pending')
-
-                                            <button
-                                                type="button"
-                                                class="btn-action btn-success-custom"
-                                                onclick="konfirmasiLunas({{ $denda->id_denda }})"
-                                            >
-                                                Konfirmasi Pembayaran
-                                            </button>
-
-                                        @elseif($denda->status_denda == 'lunas')
-
-                                            <button
-                                                type="button"
-                                                class="btn-action btn-disabled"
-                                            >
-                                                Sudah Lunas
-                                            </button>
-
-                                        @endif
-
-                                    {{-- @endif --}}
-
-                                </td>
-
-                            </tr>
+                                </tr>
 
                             @endforeach
 
                         @empty
-
                             <tr>
-                                <td colspan="11" class="empty-data">
-                                    Tidak ada data pengembalian yang perlu divalidasi.
-                                </td>
+                                <td colspan="12">Data kosong</td>
                             </tr>
-
                         @endforelse
-
                     </tbody>
-
                 </table>
-
             </div>
 
         </form>
 
-    </div>
+            <div style="padding:15px">
+                {{ $data->links() }}
+            </div>
 
+    </div>
 </div>
 
-<!-- Hidden Form for Payment Confirmation -->
-<form id="form-konfirmasi-lunas" action="" method="POST" style="display:none;">
-    @csrf
-</form>
-
 <script>
+function handleDenda(select,id,harga){
+    let box = document.getElementById('denda_'+id);
+    let input = document.getElementById('input_'+id);
 
-function formatInputRupiah(element, targetId){
-
-    let value = element.value.replace(/[^0-9]/g, '');
-
-    document.getElementById(targetId).value = value || 0;
-
-    element.value = value
-        ? new Intl.NumberFormat('id-ID').format(value)
-        : '';
+    if(select.value === 'ringan'){
+        box.style.display='flex';
+        input.value='';
+        input.readOnly=false;
+    } else if(select.value === 'berat'){
+        box.style.display='flex';
+        input.value=harga;
+        input.readOnly=true;
+    } else {
+        box.style.display='none';
+        input.value=0;
+    }
 }
 
-function hitungTotalTagihan(id, dendaTelat){
+document.querySelectorAll('.rupiah').forEach(function(input){
 
-    let dendaRusak =
-        parseInt(document.getElementById('denda_real_' + id).value) || 0;
+    input.addEventListener('keyup', function(){
 
-    let total = parseInt(dendaTelat) + dendaRusak;
+        let angka = this.value.replace(/\D/g,'');
 
-    document.getElementById('total_tagihan_' + id).innerText =
-        'Total: Rp ' + new Intl.NumberFormat('id-ID').format(total);
-}
+        this.value = new Intl.NumberFormat('id-ID')
+            .format(angka);
 
-function setJenisKerusakan(select, id, dendaTelat, hargaFasilitas){
-
-    let inputRingan =
-        document.getElementById('input_ringan_' + id);
-
-    let hiddenInput =
-        document.getElementById('denda_real_' + id);
-
-    /*
-    |--------------------------------------------------------------------------
-    | TIDAK RUSAK
-    |--------------------------------------------------------------------------
-    */
-
-    if(select.value === 'tidak_rusak'){
-
-        inputRingan.style.display = 'none';
-
-        inputRingan.value = '';
-
-        hiddenInput.value = 0;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | RUSAK RINGAN
-    |--------------------------------------------------------------------------
-    */
-
-    else if(select.value === 'ringan'){
-
-        inputRingan.style.display = 'block';
-
-        inputRingan.value = '';
-
-        hiddenInput.value = 0;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | RUSAK BERAT / HILANG
-    |--------------------------------------------------------------------------
-    */
-
-    else if(select.value === 'berat'){
-
-        inputRingan.style.display = 'none';
-
-        inputRingan.value =
-            new Intl.NumberFormat('id-ID').format(hargaFasilitas);
-
-        hiddenInput.value = hargaFasilitas;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | DEFAULT
-    |--------------------------------------------------------------------------
-    */
-
-    else{
-
-        inputRingan.style.display = 'none';
-
-        inputRingan.value = '';
-
-        hiddenInput.value = 0;
-    }
-
-    hitungTotalTagihan(id, dendaTelat);
-}
-
-function konfirmasiLunas(idDenda){
-
-    Swal.fire({
-        title: 'Konfirmasi Pembayaran',
-        text: "Apakah Anda yakin denda ini telah dibayar lunas secara tunai?",
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#16a34a',
-        cancelButtonColor: '#64748b',
-        confirmButtonText: 'Ya, Sudah Lunas',
-        cancelButtonText: 'Batal'
-    })
-
-    .then((result) => {
-
-        if(result.isConfirmed){
-
-            let form = document.getElementById('form-konfirmasi-lunas');
-
-            form.action = `/admin/pengembalian/konfirmasi/${idDenda}`;
-
-            form.submit();
-        }
     });
+
+});
+
+function formatRupiah(input){
+    let angka = input.value.replace(/\D/g,'');
+    input.value = new Intl.NumberFormat('id-ID').format(angka);
+    let hidden = input.closest('form').querySelector('.raw-nominal');
+    if(hidden) hidden.value = angka || 0;
 }
+
 
 </script>
-
-@if(session('success'))
-
-<script>
-    Swal.fire({
-        icon: 'success',
-        title: 'Berhasil',
-        text: "{{ session('success') }}",
-        timer: 2000,
-        showConfirmButton: false
-    });
-</script>
-
-@endif
 
 @endsection

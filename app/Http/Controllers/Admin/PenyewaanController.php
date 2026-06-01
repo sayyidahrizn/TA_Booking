@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Penyewaan;
 use App\Models\Fasilitas;
 use App\Models\User;
+use App\Models\Pengembalian;
 use App\Models\Pembayaran;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -18,44 +19,63 @@ class PenyewaanController extends Controller
      */
     public function verifikasiPembayaran(Request $request, $id_pembayaran)
     {
-        // Validasi input nominal
         $request->validate([
             'jumlah_bayar' => 'required|numeric|min:1'
         ]);
 
         DB::beginTransaction();
+
         try {
+
             $pembayaran = Pembayaran::with('penyewaan')->findOrFail($id_pembayaran);
-            $totalHarga = $pembayaran->penyewaan->total_harga;
+
+            $kodeBooking = $pembayaran->penyewaan->kode_booking;
+
+            // TOTAL SEMUA FASILITAS DALAM 1 BOOKING
+            $totalTagihan = Penyewaan::where('kode_booking', $kodeBooking)
+                ->sum('total_harga');
+
+            // TOTAL SUDAH DIBAYAR
+            $totalSudahBayar = Pembayaran::whereHas('penyewaan', function ($q) use ($kodeBooking) {
+                    $q->where('kode_booking', $kodeBooking);
+                })
+                ->whereIn('status_pembayaran', ['berhasil', 'diverifikasi'])
+                ->sum('jumlah_bayar');
+
             $inputBayar = $request->jumlah_bayar;
 
-            // 1. Update data pembayaran yang sedang diverifikasi
+            // TOTAL SETELAH PEMBAYARAN SEKARANG
+            $totalSetelahBayar = $totalSudahBayar + $inputBayar;
+
+            // CEK DP ATAU PELUNASAN
+            $jenisPembayaran = ($totalSetelahBayar < $totalTagihan)
+                ? 'dp'
+                : 'pelunasan';
+
+            // UPDATE PEMBAYARAN
             $pembayaran->update([
                 'status_pembayaran' => 'diverifikasi',
                 'tanggal_bayar' => now(),
                 'metode_pembayaran' => 'tunai',
                 'jumlah_bayar' => $inputBayar,
-                'jenis_pembayaran' => ($inputBayar < $totalHarga) ? 'dp' : 'pelunasan'
+                'jenis_pembayaran' => $jenisPembayaran
             ]);
 
-            // 2. Jika bayarnya belum lunas (DP), buatkan record pembayaran baru untuk sisanya
-            if ($inputBayar < $totalHarga) {
-                Pembayaran::create([
-                    'id_penyewaan' => $pembayaran->id_penyewaan,
-                    'kode_pembayaran' => 'PAY-' . time() . '-SISA',
-                    'jenis_pembayaran' => 'pelunasan',
-                    'metode_pembayaran' => 'tunai',
-                    'jumlah_bayar' => 0,
-                    'status_pembayaran' => 'pending',
-                ]);
-            }
-
             DB::commit();
-            return back()->with('success', 'Pembayaran tunai sebesar Rp ' . number_format($inputBayar) . ' berhasil diverifikasi.');
+
+            return back()->with(
+                'success',
+                'Pembayaran tunai berhasil diverifikasi.'
+            );
 
         } catch (\Exception $e) {
+
             DB::rollBack();
-            return back()->with('error', 'Gagal verifikasi: ' . $e->getMessage());
+
+            return back()->with(
+                'error',
+                'Gagal verifikasi: ' . $e->getMessage()
+            );
         }
     }
 
@@ -124,6 +144,11 @@ class PenyewaanController extends Controller
             // HITUNG SISA TAGIHAN
             $sisaTagihan = $totalTagihan - $totalBayar;
 
+            // Jika minus jadikan 0
+            if ($sisaTagihan < 0) {
+                $sisaTagihan = 0;
+            }
+
             // STATUS PEMBAYARAN
             $statusPembayaran = $sisaTagihan <= 0
                 ? 'lunas'
@@ -180,126 +205,122 @@ class PenyewaanController extends Controller
      */
     public function dashboard()
     {
-        $totalPendapatan = Penyewaan::whereHas('pembayaran', function($q) {
-                $q->whereIn('status_pembayaran', ['berhasil', 'diverifikasi']);
+        $now = now();
+        $bulan = $now->month;
+        $tahun = $now->year;
+
+        // --- BASE QUERY (Filter Bulan & Tahun Berjalan) ---
+        $baseQuery = Penyewaan::whereMonth('created_at', $bulan)
+            ->whereYear('created_at', $tahun);
+
+        /*
+        |--------------------------------------------------------------------------
+        | STATISTIK UTAMA
+        |--------------------------------------------------------------------------
+        */
+
+        // Menghitung pendapatan hanya dari transaksi yang valid/disetujui
+        $totalPendapatan = (clone $baseQuery)
+            ->where(function ($query) {
+                $query->whereHas('pembayaran', function ($q) {
+                    $q->whereIn('status_pembayaran', ['berhasil', 'diverifikasi']);
+                })->orWhere('status_sewa', 'disetujui');
             })
-            ->orWhere('status_sewa', 'disetujui')
             ->sum('total_harga');
 
         $totalFasilitas = Fasilitas::count();
-        $totalPenyewaan = Penyewaan::count();
 
-        $totalKembali = Penyewaan::where('status_sewa', 'selesai')
-            ->orWhereHas('pengembalian', function($q) {
-                $q->where('status_validasi', 'disetujui');
+        $totalPenyewaan = (clone $baseQuery)
+            ->distinct('kode_booking')
+            ->count('kode_booking');
+
+        $totalKembali = (clone $baseQuery)
+            ->where(function ($query) {
+                $query->where('status_sewa', 'selesai')
+                    ->orWhereHas('pengembalian', function ($q) {
+                        $q->where('status_validasi', 'disetujui');
+                    });
             })
-            ->count();
+            ->distinct('kode_booking')
+            ->count('kode_booking');
 
-        $pending = Penyewaan::where('status_sewa', 'proses')
+        /*
+        |--------------------------------------------------------------------------
+        | STATUS MONITORING (COUNT)
+        |--------------------------------------------------------------------------
+        */
+
+        $pending              = (clone $baseQuery)->where('status_sewa', 'proses')->distinct('kode_booking')->count();
+        $menungguPengembalian = (clone $baseQuery)->where('status_sewa', 'menunggu_pengembalian')->distinct('kode_booking')->count();
+        $menungguDenda        = (clone $baseQuery)->where('status_sewa', 'menunggu_pembayaran_denda')->distinct('kode_booking')->count();
+        
+        // Status untuk Grafik Donut
+        $disetujuiSelesai     = (clone $baseQuery)->whereIn('status_sewa', ['disetujui', 'selesai'])->distinct('kode_booking')->count();
+        $dibatalkan           = (clone $baseQuery)->whereIn('status_sewa', ['batal', 'dibatalkan_user'])->distinct('kode_booking')->count();
+
+        // Validasi Pengembalian (Berdasarkan relasi tabel pengembalian)
+        $validasiPengembalian = Pengembalian::whereMonth('tanggal_pengembalian', $bulan)
+            ->whereYear('tanggal_pengembalian', $tahun)
+            ->where('status_validasi', 'pending')
+            ->with('penyewaan')
             ->get()
-            ->groupBy('kode_booking')
+            ->groupBy(fn($item) => $item->penyewaan->kode_booking)
             ->count();
 
-        $menungguPengembalian = Penyewaan::where('status_sewa', 'menunggu_pengembalian')
-            ->get()
-            ->groupBy('kode_booking')
-            ->count();
+        /*
+        |--------------------------------------------------------------------------
+        | DATA GRAFIK PENDAPATAN HARIAN
+        |--------------------------------------------------------------------------
+        */
 
-        $validasiPengembalian = Penyewaan::where('status_sewa', 'menunggu_validasi_pengembalian')
-            ->get()
-            ->groupBy('kode_booking')
-            ->count();
-
-        $menungguDenda = Penyewaan::where('status_sewa', 'menunggu_pembayaran_denda')
-            ->get()
-            ->groupBy('kode_booking')
-            ->count();
-
-        $pendapatanBulanan = Penyewaan::select(
-                DB::raw('SUM(total_harga) as total'),
-                DB::raw('MONTH(tgl_mulai) as bulan')
-            )
-            ->whereYear('tgl_mulai', date('Y'))
-            ->where(function($query) {
-                $query->whereHas('pembayaran', function($q) {
+        $pendapatanHarian = (clone $baseQuery)
+            ->selectRaw('SUM(total_harga) as total, DAY(created_at) as hari')
+            ->where(function ($query) {
+                $query->whereHas('pembayaran', function ($q) {
                     $q->whereIn('status_pembayaran', ['berhasil', 'diverifikasi']);
-                })
-                ->orWhere('status_sewa', 'disetujui');
+                })->orWhere('status_sewa', 'disetujui');
             })
-            ->groupBy('bulan')
-            ->orderBy('bulan')
-            ->pluck('total', 'bulan')
+            ->groupBy('hari')
+            ->orderBy('hari')
+            ->pluck('total', 'hari')
             ->toArray();
 
-        $dataGrafik = [];
-        $bulanSekarang = date('n');
-        for ($i = 1; $i <= $bulanSekarang; $i++) {
-            $dataGrafik[] = $pendapatanBulanan[$i] ?? 0;
-        }
+        $labelHari  = range(1, $now->daysInMonth);
+        $dataGrafik = array_map(fn($hari) => $pendapatanHarian[$hari] ?? 0, $labelHari);
 
+        /*
+        |--------------------------------------------------------------------------
+        | LIST PENYEWAAN TERBARU (5 DATA TERAKHIR)
+        |--------------------------------------------------------------------------
+        */
 
-        $disetujuiSelesai = Penyewaan::whereIn('status_sewa', [
-            'disetujui',
-            'selesai'
-        ])->count();
+        $penyewaan = (clone $baseQuery)
+            ->with(['user', 'fasilitas', 'pengembalian', 'pembayaran'])
+            ->latest()
+            ->get()
+            ->groupBy('kode_booking')
+            ->take(5)
+            ->map(function ($group) {
+                $totalTagihan = $group->sum('total_harga');
+                
+                // Hitung total bayar dari koleksi pembayaran yang valid
+                $totalBayar = $group->pluck('pembayaran')
+                    ->flatten()
+                    ->whereIn('status_pembayaran', ['berhasil', 'diverifikasi'])
+                    ->sum('jumlah_bayar');
 
-        $dibatalkan = Penyewaan::whereIn('status_sewa', [
-            'batal',
-            'dibatalkan_user'
-        ])->count();
+                // Tambahkan atribut custom ke dalam koleksi
+                $group->total_tagihan = $totalTagihan;
+                $group->total_bayar   = $totalBayar;
+                $group->status_bayar  = ($totalBayar >= $totalTagihan) ? 'lunas' : 'pending';
 
-
-        $penyewaan = Penyewaan::with([
-        'user',
-        'fasilitas',
-        'pengembalian',
-        'pembayaran'
-        ])
-        ->latest()
-        ->get()
-        ->groupBy('kode_booking')
-        ->map(function ($group) {
-
-            $totalTagihan = $group->sum('total_harga');
-
-            $totalBayar = 0;
-
-            foreach ($group as $item) {
-
-                if ($item->pembayaran) {
-
-                    $totalBayar += $item->pembayaran
-                        ->whereIn('status_pembayaran', [
-                            'berhasil',
-                            'diverifikasi'
-                        ])
-                        ->sum('jumlah_bayar');
-                }
-            }
-
-            $group->total_tagihan = $totalTagihan;
-            $group->total_bayar = $totalBayar;
-            $group->status_bayar = $totalBayar >= $totalTagihan
-                ? 'lunas'
-                : 'pending';
-
-            return $group;
-        })
-        ->take(5);
+                return $group;
+            });
 
         return view('admin.dashboard', compact(
-            'totalPendapatan',
-            'totalFasilitas',
-            'totalKembali',
-            'totalPenyewaan',
-            'pending',
-            'menungguPengembalian',
-            'validasiPengembalian',
-            'menungguDenda',
-            'dataGrafik',
-            'penyewaan',
-            'disetujuiSelesai',
-            'dibatalkan'
+            'totalPendapatan', 'totalFasilitas', 'totalKembali', 'totalPenyewaan',
+            'pending', 'menungguPengembalian', 'validasiPengembalian', 'menungguDenda',
+            'dataGrafik', 'labelHari', 'penyewaan', 'disetujuiSelesai', 'dibatalkan'
         ));
     }
 
@@ -434,5 +455,49 @@ class PenyewaanController extends Controller
     {
         Penyewaan::findOrFail($id)->delete();
         return back()->with('success', 'Data penyewaan berhasil dihapus.');
+    }
+
+    public function cetakPembayaran($kode_booking)
+    {
+        $data = Penyewaan::with([
+            'user',
+            'fasilitas',
+            'pembayaran'
+        ])
+        ->where('kode_booking', $kode_booking)
+        ->get();
+
+        if ($data->isEmpty()) {
+            abort(404);
+        }
+
+        // TOTAL SEMUA FASILITAS
+        $totalFasilitas = $data->sum('total_harga');
+
+        // AMBIL SEMUA PEMBAYARAN VALID
+        $pembayaran = Pembayaran::whereHas('penyewaan', function ($q) use ($kode_booking) {
+                $q->where('kode_booking', $kode_booking);
+            })
+            ->whereIn('status_pembayaran', ['berhasil', 'diverifikasi'])
+            ->orderBy('tanggal_bayar')
+            ->get();
+
+        // TOTAL DIBAYAR
+        $totalDibayar = $pembayaran->sum('jumlah_bayar');
+
+        // SISA TAGIHAN
+        $sisaTagihan = $totalFasilitas - $totalDibayar;
+
+        if ($sisaTagihan < 0) {
+            $sisaTagihan = 0;
+        }
+
+        return view('admin.pembayaran.cetak', compact(
+            'data',
+            'pembayaran',
+            'totalFasilitas',
+            'totalDibayar',
+            'sisaTagihan'
+        ));
     }
 }

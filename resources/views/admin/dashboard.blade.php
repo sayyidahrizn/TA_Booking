@@ -195,7 +195,7 @@
 
     <div class="chart-card">
         <h3 style="margin: 0 0 20px 0; font-size: 15px; color: #1f2937;">
-            Ikhtisar Pendapatan (Bulanan)
+             Pendapatan Bulan Ini
         </h3>
 
         <div style="height: 300px;">
@@ -368,13 +368,7 @@
 
     const dataPendapatan = {!! json_encode($dataGrafik ?? []) !!};
 
-    const namaBulan = [
-        'Jan', 'Feb', 'Mar', 'Apr',
-        'Mei', 'Jun', 'Jul', 'Agu',
-        'Sep', 'Okt', 'Nov', 'Des'
-    ];
-
-    const labelBulan = namaBulan.slice(0, dataPendapatan.length);
+    const labelHari = {!! json_encode($labelHari) !!};
 
     const ctxRevenue = document
         .getElementById('revenueChart')
@@ -384,7 +378,7 @@
         type: 'line',
 
         data: {
-            labels: labelBulan,
+            labels: labelHari,
 
             datasets: [{
                 label: 'Pendapatan',

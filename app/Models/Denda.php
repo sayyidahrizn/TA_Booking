@@ -14,11 +14,14 @@ class Denda extends Model
 
     protected $fillable = [
         'id_penyewaan',
+        'kode_booking',
         'biaya_keterlambatan',
         'biaya_kerusakan',
         'total_denda',
         'keterangan_kerusakan',
         'status_denda',
+        'metode_pembayaran',
+        'jumlah_dibayar',
         'jenis_kerusakan', // 'belum_bayar', 'lunas'
         'snap_token',   // Untuk menyimpan token Midtrans
         'kode_pembayaran'

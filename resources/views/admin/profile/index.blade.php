@@ -63,6 +63,12 @@
                 </div>
             @endif
 
+            @if(session('error'))
+                <div style="background: #fee2e2; color: #991b1b; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                    {{ session('error') }}
+                </div>
+            @endif
+
             <form action="{{ route('admin.profile.update') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <input type="file" id="photo-admin" name="photo" style="display: none;" accept="image/*" onchange="previewImage(this, 'avatar-preview-admin')">
@@ -78,6 +84,18 @@
                         <label class="form-label">Email</label>
                         <input type="email" name="email" class="form-control" value="{{ old('email', $admin->email) }}">
                         @error('email') <small class="error-text">{{ $message }}</small> @enderror
+                    </div>
+                    <div>
+                        <label class="form-label">No Hp</label>
+                        <input type="text" 
+                            name="no_hp" 
+                            class="form-control" 
+                            value="{{ old('no_hp', $admin->no_hp) }}"
+                            placeholder="Masukkan nomor HP">
+                            
+                        @error('no_hp')
+                            <small class="error-text">{{ $message }}</small>
+                        @enderror
                     </div>
                 </div>
 
@@ -105,6 +123,7 @@
         </div>
     </div>
 </div>
+
 
 <script>
     function previewImage(input, previewId) {

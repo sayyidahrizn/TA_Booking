@@ -20,6 +20,7 @@ return new class extends Migration
             $table->decimal('total_denda', 15, 2);
             $table->text('keterangan_kerusakan')->nullable();
             $table->enum('status_denda', ['belum_bayar', 'lunas']);
+            $table->string('kode_booking')->nullable();
             $table->timestamps();
 
             // Foreign Key

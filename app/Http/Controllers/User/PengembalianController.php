@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Validation\Rule;
 use Exception;
 
 class PengembalianController extends Controller
@@ -18,14 +19,14 @@ class PengembalianController extends Controller
     {
         $userId = Auth::id();
 
-        // 1. Ambil data penyewaan yang sudah disetujui
-        // tapi BELUM ada di tabel pengembalian
         $penyewaan = Penyewaan::with(['fasilitas', 'pembayaran'])
             ->where('id_user', $userId)
             ->where('status_sewa', 'disetujui')
             ->whereDoesntHave('pengembalian')
-            ->get()
-            ->map(function($item) {
+            ->orderBy('tgl_mulai', 'desc')
+            ->paginate(10);
+            
+        $penyewaan->getCollection()->transform(function($item){
 
                 // =========================
                 // HITUNG TOTAL PEMBAYARAN
@@ -67,10 +68,8 @@ class PengembalianController extends Controller
                 $item->terlambat = Carbon::now()->greaterThan($item->batas_tanpa_denda);
 
                 return $item;
-            })
-            ->groupBy(function($item) {
-                return Carbon::parse($item->tgl_mulai)->format('Y-m-d');
             });
+            $data = $penyewaan->getCollection()->groupBy('kode_booking');
 
         // =========================
         // AMBIL DENDA BELUM DIBAYAR
@@ -79,129 +78,119 @@ class PengembalianController extends Controller
             ->whereHas('penyewaan', function($q) use ($userId) {
                 $q->where('id_user', $userId);
             })
-            ->where('status_denda', 'belum_bayar')
-            ->get();
+            ->whereIn('status_denda', ['belum_bayar', 'pending', 'menunggu_pembayaran', 'pending_tunai'])
+            ->get()
+            ->groupBy(function ($item) {
+                return $item->penyewaan->kode_booking;
+            });
 
         return view(
             'user.pengembalian.index',
-            compact('penyewaan', 'denda_tunggakan')
+            [
+                'data' => $data,
+                'pagination' => $penyewaan,
+                'denda_tunggakan' => $denda_tunggakan
+            ]
         );
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'id_penyewaan' => 'required|array|min:1',
-            'bukti_pengembalian' => 'required|array',
+            'tanggal_group'        => 'required',
+            'id_penyewaan'         => 'required|array|min:1',
+            'id_penyewaan.*'       => ['integer', Rule::exists(Penyewaan::class, 'id_penyewaan')],
+            'bukti_pengembalian'   => 'required|array',
             'bukti_pengembalian.*' => 'image|mimes:jpeg,png,jpg|max:5120',
-        ], [
-            'id_penyewaan.required' => 'Silakan pilih fasilitas yang akan dikembalikan.',
-            'bukti_pengembalian.*.image' => 'File bukti harus berupa gambar.',
-            'bukti_pengembalian.*.max' => 'Ukuran gambar maksimal adalah 5MB.',
         ]);
 
         DB::beginTransaction();
 
         try {
-            $count = 0;
-
             foreach ($request->id_penyewaan as $id) {
-                // VALIDASI FOTO
-                if (!$request->hasFile("bukti_pengembalian.$id")) {
-                    throw new Exception("Bukti foto untuk salah satu fasilitas belum diunggah.");
+
+                // Cek bukti ada
+                if (!$request->hasFile("bukti_pengembalian.{$id}")) {
+                    throw new Exception("Bukti pengembalian untuk fasilitas ID {$id} belum diupload.");
                 }
 
-                // AMBIL DATA PENYEWAAN
-                $penyewaan = Penyewaan::with(['pembayaran', 'fasilitas'])
+                // Ambil data penyewaan milik user
+                $penyewaan = Penyewaan::with(['fasilitas', 'pembayaran'])
                     ->where('id_penyewaan', $id)
                     ->where('id_user', Auth::id())
-                    ->lockForUpdate()
-                    ->first();
+                    ->where('status_sewa', 'disetujui')
+                    ->firstOrFail();
 
-                if (!$penyewaan) {
-                    throw new Exception("Data penyewaan tidak ditemukan.");
-                }
-
-                // CEK WAKTU SELESAI
-                $waktuSelesai = Carbon::parse($penyewaan->tgl_selesai . ' ' . $penyewaan->jam_selesai);
-
-                if (Carbon::now()->lt($waktuSelesai)) {
-                    throw new Exception("Fasilitas {$penyewaan->fasilitas->nama_fasilitas} belum bisa dikembalikan karena waktu penyewaan belum selesai.");
-                }
-
-                // CEK PEMBAYARAN
+                // Pastikan lunas
                 $totalBayar = $penyewaan->pembayaran
                     ->where('status_pembayaran', 'berhasil')
                     ->sum('jumlah_bayar');
 
                 $sisa = $penyewaan->total_harga - $totalBayar;
-
-                if ($sisa > 0) {
-                    throw new Exception("Fasilitas {$penyewaan->fasilitas->nama_fasilitas} belum lunas. Sisa pembayaran Rp " . number_format($sisa, 0, ',', '.'));
+                if ($sisa >= 1) {
+                    throw new Exception(
+                        "Pembayaran untuk fasilitas {$penyewaan->fasilitas->nama_fasilitas} belum lunas."
+                    );
                 }
 
-                // CEK DUPLIKAT
-                $cekPengembalian = Pengembalian::where('id_penyewaan', $penyewaan->id_penyewaan)->first();
-                if ($cekPengembalian) {
-                    throw new Exception("Fasilitas {$penyewaan->fasilitas->nama_fasilitas} sudah diajukan pengembalian.");
-                }
+                // Upload bukti
+                $file = $request->file("bukti_pengembalian.{$id}")
+                    ->store('pengembalian', 'public');
 
-                // UPLOAD FOTO
-                $file = $request->file("bukti_pengembalian.$id")->store('pengembalian', 'public');
-
-                // SIMPAN PENGEMBALIAN
+                // Insert 1 baris pengembalian per fasilitas
                 Pengembalian::create([
-                    'id_penyewaan' => $penyewaan->id_penyewaan,
+                    'id_penyewaan'         => $id,
+                    'id_user'              => Auth::id(),
                     'tanggal_pengembalian' => now(),
-                    'bukti_pengembalian' => $file,
-                    'status_validasi' => 'pending',
+                    'bukti_pengembalian'   => $file,
+                    'status_validasi'      => 'pending',
                 ]);
 
+                // Update status penyewaan
                 $penyewaan->update([
-                    'status_sewa' => 'menunggu_validasi_pengembalian'
+                    'status_sewa' => 'menunggu_validasi_pengembalian',
                 ]);
-
-                $count++;
             }
 
             DB::commit();
-            return redirect()->route('user.pengembalian')->with('success', "$count fasilitas berhasil diajukan pengembalian.");
+
+            return redirect()
+                ->route('user.pengembalian')
+                ->with('success', 'Pengajuan pengembalian berhasil dikirim.');
 
         } catch (Exception $e) {
             DB::rollBack();
-            return back()->with('error', $e->getMessage())->withInput();
+            return back()->with('error', $e->getMessage());
         }
     }
 
     public function bayarDenda($id)
     {
-        // =========================================
-        // AMBIL DATA DENDA (Lengkap dengan Pengembalian untuk hitung hari)
-        // =========================================
         $denda = Denda::with([
             'penyewaan.fasilitas',
-            'penyewaan.user',
-            'penyewaan.pengembalian' 
+            'penyewaan.user'
         ])->findOrFail($id);
 
-        // =========================================
-        // KONFIGURASI MIDTRANS
-        // =========================================
+        if (str_starts_with((string) $denda->kode_pembayaran, 'TUNAI-REQ-')) {
+            return redirect()->route('user.pengembalian')
+                ->with('success', 'Pembayaran tunai sedang menunggu verifikasi admin.');
+        }
+
+        // ❌ kalau sudah lunas jangan lanjut
+        if ($denda->status_denda == 'lunas') {
+            return redirect()->route('user.pengembalian')
+                ->with('success', 'Denda sudah dibayar.');
+        }
+
         \Midtrans\Config::$serverKey = config('services.midtrans.server_key');
         \Midtrans\Config::$isProduction = config('services.midtrans.is_production', false);
         \Midtrans\Config::$isSanitized = true;
         \Midtrans\Config::$is3ds = true;
 
-        if ($denda->status_denda == 'lunas') {
-            return redirect()->route('user.pengembalian')->with('success', 'Denda sudah dibayar.');
-        }
+        // 👉 selalu generate ulang atau pakai yang ada
+        $orderId = $denda->kode_pembayaran ?? 'DENDA-' . $denda->id_denda . '-' . time();
 
-        // =========================================
-        // JIKA BELUM ADA SNAP TOKEN, GENERATE BARU
-        // =========================================
         if (!$denda->snap_token) {
-            $orderId = 'DENDA-' . $denda->id_denda . '-' . time();
-
             $params = [
                 'transaction_details' => [
                     'order_id' => $orderId,
@@ -213,10 +202,10 @@ class PengembalianController extends Controller
                 ],
                 'item_details' => [
                     [
-                        'id' => 'DND-' . $denda->id_denda,
+                        'id' => 'DENDA-' . $denda->id_denda,
                         'price' => (int) $denda->total_denda,
                         'quantity' => 1,
-                        'name' => 'Denda ' . $denda->penyewaan->fasilitas->nama_fasilitas,
+                        'name' => 'Denda - ' . $denda->penyewaan->fasilitas->nama_fasilitas,
                     ]
                 ],
                 'callbacks' => [
@@ -226,10 +215,12 @@ class PengembalianController extends Controller
 
             try {
                 $snapToken = \Midtrans\Snap::getSnapToken($params);
+
                 $denda->update([
                     'snap_token' => $snapToken,
-                    'kode_pembayaran' => $orderId
+                    'kode_pembayaran' => $orderId,
                 ]);
+
             } catch (\Exception $e) {
                 return back()->with('error', 'Gagal memproses pembayaran: ' . $e->getMessage());
             }
@@ -244,17 +235,13 @@ class PengembalianController extends Controller
     {
         $denda = Denda::findOrFail($id);
 
-        // Simpan metode pembayaran
         $denda->update([
-            'metode_pembayaran' => 'tunai',
-            'status_denda'      => 'pending'
+            'status_denda' => 'belum_bayar',
+            'kode_pembayaran' => 'TUNAI-REQ-' . $denda->id_denda . '-' . time(),
         ]);
 
         return redirect()
             ->route('user.pengembalian')
-            ->with(
-                'success',
-                'Silakan lakukan pembayaran denda di kantor desa.'
-            );
+            ->with('success', 'Permintaan pembayaran tunai dikirim. Menunggu verifikasi admin.');
     }
 }

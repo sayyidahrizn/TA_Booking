@@ -36,7 +36,7 @@
             <tbody style="color: #334155; font-size: 14px;">
                 @forelse($data as $kode_booking => $group)
                 @php
-                    $p = $group->first();
+                    $p = $group->sortByDesc('updated_at')->first();
                     $statusSewa = strtolower($p->status_sewa);
                     
                     // 1. Hitung Total Tagihan
@@ -52,7 +52,24 @@
                     $sisaTagihan = $totalHargaGrup - $totalMasuk;
                     $lunas = $sisaTagihan <= 0; 
                     $sudahAdaBayar = $totalMasuk > 0;
+                    $lunas = $sisaTagihan <= 0; 
+                    $statusPembayaranText = 'BELUM DIBAYAR';
+
+                    if ($lunas) {
+                        $statusPembayaranText = 'LUNAS';
+                    } elseif ($sudahAdaBayar) {
+                        $statusPembayaranText = 'DP';
+                    }
                     $idUntukBayar = $p->id_penyewaan; 
+
+                    $hasDendaLunas = $group->flatMap->pengembalian
+                        ->flatMap->denda
+                        ->where('status_denda', 'lunas')
+                        ->isNotEmpty();
+
+                    if ($hasDendaLunas) {
+                        $statusSewa = 'selesai';
+                    }
                 @endphp
 
                 <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
@@ -106,10 +123,18 @@
                             $paymentInfo = $group->flatMap->pembayaran->first();
                         @endphp
 
-                        @if($lunas)
+                        @if($statusPembayaranText == 'LUNAS')
+
                             <div style="color: #059669; font-weight: 700; display: flex; align-items: center; gap: 6px;">
                                 <div style="width: 8px; height: 8px; background: #059669; border-radius: 50%;"></div>
-                                TERBAYAR LUNAS
+                                LUNAS
+                            </div>
+
+                        @elseif($statusPembayaranText == 'DP')
+
+                            <div style="color: #d97706; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 8px; height: 8px; background: #f59e0b; border-radius: 50%;"></div>
+                                DP
                             </div>
                         @elseif($statusSewa == 'disetujui')
                             {{-- JIKA METODE TUNAI --}}
@@ -152,15 +177,44 @@
                             </form>
 
                         @elseif($sudahAdaBayar)
-                            <a href="{{ route('user.penyewaan.bukti', $kode_booking) }}" target="_blank"
-                               style="display: inline-flex; align-items: center; gap: 6px; color: #4f46e5; text-decoration: none; font-weight: 700; border: 2px solid #e0e7ff; padding: 8px 14px; border-radius: 10px; font-size: 13px; transition: all 0.2s;"
-                               onmouseover="this.style.background='#e0e7ff'"
-                               onmouseout="this.style.background='transparent'">
-                                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-                                </svg>
-                                Cetak Bukti
-                            </a>
+
+                            @php
+                                $adaTunai = $item->pembayaran
+                                    ->where('metode_pembayaran', 'tunai')
+                                    ->count();
+                            @endphp
+
+                            @if($adaTunai <= 0)
+
+                                <a href="{{ route('user.penyewaan.bukti', $kode_booking) }}" target="_blank"
+                                style="display: inline-flex; align-items: center; gap: 6px; color: #4f46e5; text-decoration: none; font-weight: 700; border: 2px solid #e0e7ff; padding: 8px 14px; border-radius: 10px; font-size: 13px; transition: all 0.2s;"
+                                onmouseover="this.style.background='#e0e7ff'"
+                                onmouseout="this.style.background='transparent'">
+
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                                    </svg>
+
+                                    Cetak Bukti
+
+                                </a>
+
+                            @else
+
+                                <span style="
+                                    background-color: #fef3c7; 
+                                    color: #92400e; 
+                                    padding: 6px 12px; 
+                                    border-radius: 6px; 
+                                    font-size: 14px; 
+                                    font-weight: 600; 
+                                    display: inline-block; 
+                                    text-align: center;
+                                    border: 1px solid #fcd34d;">
+                                    Bukti dicetak admin
+                                </span>
+
+                            @endif
 
                         @elseif($statusSewa == 'dibatalkan_user')
                             <span style="background:#fee2e2; color:#991b1b; padding:8px 14px; border-radius:8px; font-size:12px; font-weight:700;">

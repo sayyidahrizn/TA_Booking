@@ -1,19 +1,75 @@
-@extends('admin.layout') <!-- Sesuaikan nama layout utama Anda -->
+@extends('admin.layout')
 
-@section('title', 'Laporan Pemasukan Sewa')
-@section('page-title', 'Laporan Pemasukan Sewa')
+@section('title', 'Laporan Pemasukan Penyewaan')
+@section('page-title', 'Laporan Pemasukan Penyewaan')
 
 @section('content')
-<div class="card">
-    <!-- Bagian Atas / Fitur Kontrol -->
+<style>
+    /* Mengatasi tampilan list vertikal (bullet points) pada pagination */
+    .pagination-custom {
+        margin-top: 30px;
+        display: flex;
+        justify-content: center;
+    }
+    
+    .pagination-custom nav ul {
+        display: flex;
+        list-style: none;
+        padding: 0;
+        gap: 5px;
+    }
+
+    .pagination-custom nav ul li {
+        display: inline-block;
+    }
+
+    .pagination-custom nav ul li a, 
+    .pagination-custom nav ul li span {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 14px;
+        text-decoration: none;
+        background-color: #fff;
+        border: 1px solid #dee2e6;
+        color: #2563eb;
+        border-radius: 4px;
+        transition: all 0.2s;
+        min-width: 40px;
+    }
+
+    .pagination-custom nav ul li a:hover {
+        background-color: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+
+    .pagination-custom nav ul li.active span {
+        background-color: #2563eb;
+        color: white;
+        border-color: #2563eb;
+    }
+
+    .pagination-custom nav ul li.disabled span {
+        color: #94a3b8;
+        background-color: #f8fafc;
+        cursor: not-allowed;
+    }
+
+    /* Merapikan panah SVG agar tidak raksasa */
+    .pagination-custom svg {
+        width: 16px;
+        height: 16px;
+    }
+</style>
+
+<div class="card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
         <h3 style="margin: 0; font-size: 18px; color: #1e293b;">
             <i class="fa-solid fa-wallet" style="color: #38bdf8; margin-right: 8px;"></i> 
-            Data Pemasukan Sewa Fasilitas ({{ $periodeTeks }})
+            Data Pemasukan Penyewaan Fasilitas ({{ $periodeTeks }})
         </h3>
         
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <!-- Form Filter Tanggal -->
             <form method="GET" action="{{ route('admin.laporan.sewa') }}" style="display: flex; gap: 10px; align-items: center;">
                 <input type="date" name="start_date" value="{{ $startDate }}" style="padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit;">
                 <span style="color: #64748b;">s/d</span>
@@ -26,7 +82,6 @@
                 @endif
             </form>
 
-            <!-- Tombol Ekspor -->
             <a href="{{ route('admin.laporan.pdf', request()->query()) }}" style="background-color: #ef4444; color: white; text-decoration: none; padding: 8px 16px; border-radius: 6px; font-weight: bold;">
                 <i class="fa-solid fa-file-pdf"></i> PDF
             </a>
@@ -36,13 +91,11 @@
         </div>
     </div>
 
-    <!-- Ringkasan Total Pendapatan -->
     <div style="background-color: #f8fafc; border-left: 4px solid #10b981; padding: 15px; border-radius: 0 8px 8px 0; margin-bottom: 20px;">
         <span style="color: #64748b; font-size: 13px; display: block; margin-bottom: 5px;">Total Pendapatan Sewa</span>
         <strong style="font-size: 24px; color: #10b981;">Rp {{ number_format($totalPemasukan, 0, ',', '.') }}</strong>
     </div>
 
-    <!-- Tabel Data Transaksi -->
     <div style="overflow-x: auto;">
         <table style="width: 100%; border-collapse: collapse; text-align: left;">
             <thead>
@@ -82,9 +135,8 @@
         </table>
     </div>
 
-    <!-- Pagination Link -->
-    <div style="margin-top: 20px;">
-        {{ $detailLaporan->links() }}
+    <div class="pagination-custom">
+        {{ $detailLaporan->appends(request()->query())->links() }}
     </div>
 </div>
 @endsection

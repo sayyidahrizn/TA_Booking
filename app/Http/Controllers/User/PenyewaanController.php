@@ -20,18 +20,44 @@ class PenyewaanController extends Controller
      */
     public function dashboard()
     {
-        $penyewaan = Penyewaan::with(['fasilitas', 'pengembalian', 'pembayaran'])
-            ->where('id_user', Auth::id())
-            ->latest()->get()->groupBy('kode_booking')->take(5);
+        $userId = Auth::id();
 
-        $totalPenyewaan = Penyewaan::where('id_user', Auth::id())->count();
+        // ambil data penyewaan
+        $penyewaanRaw = Penyewaan::with(['fasilitas', 'pengembalian', 'pembayaran'])
+            ->where('id_user', $userId)
+            ->latest()
+            ->get();
+
+        // group dulu, baru ambil 5 booking terbaru
+        $penyewaan = $penyewaanRaw
+            ->groupBy('kode_booking')
+            ->take(5);
+
+        // total penyewaan
+        $totalPenyewaan = Penyewaan::where('id_user', $userId)->count();
+
+        // aktif (lebih aman pakai raw + pengecualian selesai)
         $penyewaanAktif = Penyewaan::where('id_user', Auth::id())
-            ->whereIn('status_sewa', ['proses', 'disetujui', 'dibatalkan_user'])
-            ->whereDoesntHave('pengembalian', function($q) {
+            ->whereIn('status_sewa', ['proses', 'disetujui', 'menunggu_validasi_pengembalian'])
+            ->whereDoesntHave('pengembalian', function ($q) {
                 $q->where('status_validasi', 'disetujui');
-            })->count();
+            })
+            ->whereDoesntHave('denda', function ($q) {
+                $q->where('status_denda', 'lunas');
+            })
+            ->count();
 
-        return view('user.dashboard', compact('penyewaan', 'totalPenyewaan', 'penyewaanAktif'));
+        // 🔥 INI YANG KAMU LUPA
+        $allPembayaran = \App\Models\Pembayaran::whereHas('penyewaan', function ($q) use ($userId) {
+            $q->where('id_user', $userId);
+        })->get();
+
+        return view('user.dashboard', compact(
+            'penyewaan',
+            'totalPenyewaan',
+            'penyewaanAktif',
+            'allPembayaran'
+        ));
     }
 
     /**
@@ -253,7 +279,7 @@ class PenyewaanController extends Controller
      */
     public function cetakBukti($kode_booking)
     {
-        $data = Penyewaan::with(['user', 'fasilitas', 'pembayaran'])
+        $data = Penyewaan::with(['user', 'fasilitas', 'pembayaran','denda'])
             ->where('kode_booking', $kode_booking)
             ->where('id_user', Auth::id())->get();
 

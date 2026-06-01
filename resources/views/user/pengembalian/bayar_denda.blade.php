@@ -1,6 +1,7 @@
 @extends('user.layouts.app')
 
 @section('content')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
     .pay-container {
         display: flex;
@@ -237,12 +238,14 @@
             Bayar via Midtrans
         </button>
 
-        <form action="{{ route('user.denda.tunai', $denda->id_denda) }}"
+        <form id="form-tunai-denda"
+            action="{{ route('user.denda.tunai', $denda->id_denda) }}"
             method="POST">
 
             @csrf
 
-            <button type="submit"
+            <button type="button"
+                    id="btn-tunai-denda"
                     class="pay-btn-confirm"
                     style="margin-top:12px; background:#f59e0b;">
                 Bayar Tunai di Kantor Desa
@@ -260,6 +263,9 @@
 
 <script type="text/javascript">
     const payButton = document.getElementById('pay-button');
+    const tunaiButton = document.getElementById('btn-tunai-denda');
+    const tunaiForm = document.getElementById('form-tunai-denda');
+
     payButton.addEventListener('click', function () {
         // Logika Integrasi Midtrans
         window.snap.pay('{{ $snapToken }}', {
@@ -290,6 +296,23 @@
             },
             onClose: function () {
                 console.log('User closed the popup without finishing the payment');
+            }
+        });
+    });
+
+    tunaiButton.addEventListener('click', function () {
+        Swal.fire({
+            icon: 'question',
+            title: 'Konfirmasi Pembayaran Tunai',
+            text: 'Setelah dikirim, status denda menjadi menunggu verifikasi admin.',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Kirim',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                tunaiButton.disabled = true;
+                tunaiButton.innerText = 'Mengirim...';
+                tunaiForm.submit();
             }
         });
     });
