@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Pengembalian;
 use App\Models\Penyewaan;
 use App\Models\Denda;
+use App\Models\Pembayaran;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,80 +19,55 @@ class PengembalianController extends Controller
     public function index()
     {
         $userId = Auth::id();
+        $now = Carbon::now();
 
-        $penyewaan = Penyewaan::with(['fasilitas', 'pembayaran'])
+        // 1. Ambil data penyewaan dengan relasi yang dibutuhkan
+        $penyewaan = Penyewaan::with(['fasilitas', 'pembayaran', 'pengembalian'])
             ->where('id_user', $userId)
             ->where('status_sewa', 'disetujui')
             ->whereDoesntHave('pengembalian')
             ->orderBy('tgl_mulai', 'desc')
             ->paginate(10);
+
+        // 2. Transformasi koleksi
+        $penyewaan->getCollection()->transform(function ($item) use ($now) {
+            $kodeBooking = $item->kode_booking;
+
+            // Hitung Total Tagihan & Pembayaran (Saran: Sebaiknya buat method di Model)
+            $totalTagihanBooking = Penyewaan::where('kode_booking', $kodeBooking)->sum('total_harga');
             
-        $penyewaan->getCollection()->transform(function($item){
+            $totalBayarBooking = Pembayaran::whereHas('penyewaan', fn($q) => $q->where('kode_booking', $kodeBooking))
+                ->whereIn('status_pembayaran', ['berhasil', 'diverifikasi'])
+                ->sum('jumlah_bayar');
 
-                // =========================
-                // HITUNG TOTAL PEMBAYARAN
-                // =========================
-                $totalBayar = $item->pembayaran
-                    ->where('status_pembayaran', 'berhasil')
-                    ->sum('jumlah_bayar');
+            // Logic Tanggal & Status
+            $waktuSelesai = Carbon::parse($item->tgl_selesai);
+            $batasTanpaDenda = $waktuSelesai->copy()->addHours(12);
 
-                // =========================
-                // HITUNG SISA PEMBAYARAN
-                // =========================
-                $sisaRaw = $item->total_harga - $totalBayar;
+            // Tambahkan atribut custom ke object
+            $item->sisa_pembayaran      = max($totalTagihanBooking - $totalBayarBooking, 0);
+            $item->sudah_boleh_kembali  = $now->greaterThanOrEqualTo($waktuSelesai);
+            $item->batas_tanpa_denda    = $batasTanpaDenda;
+            $item->terlambat            = $now->greaterThan($batasTanpaDenda);
 
-                // Jika selisih kecil dianggap lunas
-                $item->sisa_pembayaran = ($sisaRaw < 1) ? 0 : $sisaRaw;
+            return $item;
+        });
 
-                // =========================
-                // GABUNGKAN TANGGAL & JAM
-                // =========================
-                $waktuSelesai = Carbon::parse(
-                    $item->tgl_selesai . ' ' . $item->jam_selesai
-                );
+        // 3. Kelompokkan berdasarkan kode_booking
+        $dataGrouped = $penyewaan->getCollection()->groupBy('kode_booking');
 
-                // =========================
-                // STATUS BOLEH KEMBALI
-                // =========================
-                // Pengembalian baru bisa setelah waktu selesai
-                $item->sudah_boleh_kembali = Carbon::now()->greaterThanOrEqualTo($waktuSelesai);
-
-                // =========================
-                // BATAS TANPA DENDA
-                // =========================
-                // Toleransi 12 jam
-                $item->batas_tanpa_denda = $waktuSelesai->copy()->addHours(12);
-
-                // =========================
-                // STATUS TERLAMBAT
-                // =========================
-                $item->terlambat = Carbon::now()->greaterThan($item->batas_tanpa_denda);
-
-                return $item;
-            });
-            $data = $penyewaan->getCollection()->groupBy('kode_booking');
-
-        // =========================
-        // AMBIL DENDA BELUM DIBAYAR
-        // =========================
-        $denda_tunggakan = Denda::with('penyewaan.fasilitas')
-            ->whereHas('penyewaan', function($q) use ($userId) {
-                $q->where('id_user', $userId);
-            })
+        // 4. Ambil denda yang belum lunas
+        $dendaTunggakan = Denda::with(['penyewaan.fasilitas'])
+            ->whereHas('penyewaan', fn($q) => $q->where('id_user', $userId))
             ->whereIn('status_denda', ['belum_bayar', 'pending', 'menunggu_pembayaran', 'pending_tunai'])
             ->get()
-            ->groupBy(function ($item) {
-                return $item->penyewaan->kode_booking;
-            });
+            ->groupBy(fn($item) => $item->penyewaan->kode_booking);
 
-        return view(
-            'user.pengembalian.index',
-            [
-                'data' => $data,
-                'pagination' => $penyewaan,
-                'denda_tunggakan' => $denda_tunggakan
-            ]
-        );
+        return view('user.pengembalian.index', [
+            'data'            => $dataGrouped,
+            'pagination'      => $penyewaan,
+            'denda_tunggakan' => $dendaTunggakan
+        ]);
     }
 
     public function store(Request $request)
@@ -107,60 +83,61 @@ class PengembalianController extends Controller
         DB::beginTransaction();
 
         try {
-            foreach ($request->id_penyewaan as $id) {
+            $userId = Auth::id();
 
-                // Cek bukti ada
+            foreach ($request->id_penyewaan as $id) {
+                // 1. Validasi keberadaan file bukti
                 if (!$request->hasFile("bukti_pengembalian.{$id}")) {
-                    throw new Exception("Bukti pengembalian untuk fasilitas ID {$id} belum diupload.");
+                    throw new Exception("Bukti pengembalian untuk ID {$id} belum diunggah.");
                 }
 
-                // Ambil data penyewaan milik user
-                $penyewaan = Penyewaan::with(['fasilitas', 'pembayaran'])
-                    ->where('id_penyewaan', $id)
-                    ->where('id_user', Auth::id())
-                    ->where('status_sewa', 'disetujui')
-                    ->firstOrFail();
+                // 2. Ambil data penyewaan (Eager Loading untuk performa)
+                $penyewaan = Penyewaan::where([
+                    ['id_penyewaan', '=', $id],
+                    ['id_user', '=', $userId],
+                    ['status_sewa', '=', 'disetujui']
+                ])->firstOrFail();
 
-                // Pastikan lunas
-                $totalBayar = $penyewaan->pembayaran
-                    ->where('status_pembayaran', 'berhasil')
+                // 3. Cek Status Pembayaran (Total Tagihan vs Total Bayar)
+                $kodeBooking = $penyewaan->kode_booking;
+                
+                $totalTagihan = Penyewaan::where('kode_booking', $kodeBooking)->sum('total_harga');
+                
+                $totalBayar = Pembayaran::whereHas('penyewaan', fn($q) => $q->where('kode_booking', $kodeBooking))
+                    ->whereIn('status_pembayaran', ['berhasil', 'diverifikasi'])
                     ->sum('jumlah_bayar');
 
-                $sisa = $penyewaan->total_harga - $totalBayar;
-                if ($sisa >= 1) {
-                    throw new Exception(
-                        "Pembayaran untuk fasilitas {$penyewaan->fasilitas->nama_fasilitas} belum lunas."
-                    );
+                $sisa = $totalTagihan - $totalBayar;
+
+                if ($sisa > 0) {
+                    throw new Exception("Booking {$kodeBooking} belum lunas. Sisa tagihan: Rp " . number_format($sisa, 0, ',', '.'));
                 }
 
-                // Upload bukti
-                $file = $request->file("bukti_pengembalian.{$id}")
-                    ->store('pengembalian', 'public');
+                // 4. Proses Simpan File
+                $path = $request->file("bukti_pengembalian.{$id}")->store('pengembalian', 'public');
 
-                // Insert 1 baris pengembalian per fasilitas
+                // 5. Insert Pengembalian
                 Pengembalian::create([
                     'id_penyewaan'         => $id,
-                    'id_user'              => Auth::id(),
+                    'id_user'              => $userId,
                     'tanggal_pengembalian' => now(),
-                    'bukti_pengembalian'   => $file,
+                    'bukti_pengembalian'   => $path,
                     'status_validasi'      => 'pending',
                 ]);
 
-                // Update status penyewaan
+                // 6. Update Status Penyewaan
                 $penyewaan->update([
                     'status_sewa' => 'menunggu_validasi_pengembalian',
                 ]);
             }
 
             DB::commit();
-
-            return redirect()
-                ->route('user.pengembalian')
+            return redirect()->route('user.pengembalian')
                 ->with('success', 'Pengajuan pengembalian berhasil dikirim.');
 
         } catch (Exception $e) {
             DB::rollBack();
-            return back()->with('error', $e->getMessage());
+            return back()->withInput()->with('error', $e->getMessage());
         }
     }
 
