@@ -404,101 +404,101 @@
                                         {{-- 🧾 AKSI (TERMASUK CETAK BUKTI) --}}
                                         <td rowspan="{{ $rowCount }}">
 
-    {{-- 1. LUNAS --}}
-    @if($dendaGroup && $dendaGroup->status_denda == 'lunas')
+                                        {{-- 1. LUNAS --}}
+                                        @if($dendaGroup && $dendaGroup->status_denda == 'lunas')
 
-        <button type="button"
-                class="btn-action bg-success-soft"
-                style="color:#166534;"
-                disabled>
-            ✓ Selesai
-        </button>
+                                            <button type="button"
+                                                    class="btn-action bg-success-soft"
+                                                    style="color:#166534;"
+                                                    disabled>
+                                                ✓ Selesai
+                                            </button>
 
-        {{-- CETAK BUKTI HANYA JIKA BUKAN MIDTRANS --}}
-        @if(!($pembayaran && $pembayaran->metode_pembayaran == 'midtrans'))
-            <a href="{{ route('admin.pengembalian.bukti', $dendaGroup->id_denda) }}"
-               target="_blank"
-               class="btn-print">
-                Cetak Bukti
-            </a>
-        @endif
-
-
-    {{-- 2. MENUNGGU DENDA --}}
-    @elseif($isMenungguDenda)
-        <button type="button" class="btn-action btn-disabled" disabled>
-            Menunggu Pembayaran Denda
-        </button>
+                                            {{-- CETAK BUKTI HANYA JIKA BUKAN MIDTRANS --}}
+                                            @if(!($pembayaran && $pembayaran->metode_pembayaran == 'midtrans'))
+                                                <a href="{{ route('admin.pengembalian.bukti', $dendaGroup->id_denda) }}"
+                                                target="_blank"
+                                                class="btn-print">
+                                                    Cetak Bukti
+                                                </a>
+                                            @endif
 
 
-    {{-- 3. SELESAI TANPA DENDA --}}
-    @elseif($isSelesaiSewa && !$dendaGroup)
-        <button type="button" class="btn-action btn-disabled" disabled>
-            ✓ Selesai
-        </button>
+                                        {{-- 2. MENUNGGU DENDA --}}
+                                        @elseif($isMenungguDenda)
+                                            <button type="button" class="btn-action btn-disabled" disabled>
+                                                Menunggu Pembayaran Denda
+                                            </button>
 
 
-    {{-- 4. FORM VALIDASI --}}
-    @elseif(!$dendaGroup)
-
-        <form id="form_{{ $kodeBooking }}"
-              method="POST"
-              action="{{ route('admin.pengembalian.validasi') }}">
-            @csrf
-
-            <input type="hidden" name="submit_booking" value="{{ $kodeBooking }}">
-
-            @foreach($items as $row)
-                <input type="hidden"
-                       id="hk_{{ $row->id }}"
-                       name="jenis_kerusakan[{{ $row->id }}]"
-                       value="tidak_rusak">
-
-                <input type="hidden"
-                       id="hdr_{{ $row->id }}"
-                       name="denda_rusak[{{ $row->id }}]"
-                       value="0">
-
-                <input type="hidden"
-                       id="hca_{{ $row->id }}"
-                       name="catatan_admin[{{ $row->id }}]"
-                       value="">
-            @endforeach
-
-            <button type="button"
-                    class="btn-action btn-primary-custom"
-                    onclick="submitValidasi('{{ $kodeBooking }}', [{{ $items->pluck('id')->join(',') }}])">
-                Selesaikan & Tagih
-            </button>
-        </form>
+                                        {{-- 3. SELESAI TANPA DENDA --}}
+                                        @elseif($isSelesaiSewa && !$dendaGroup)
+                                            <button type="button" class="btn-action btn-disabled" disabled>
+                                                ✓ Selesai
+                                            </button>
 
 
-    {{-- 5. MIDTRANS PENDING --}}
-    @elseif(
-        $pembayaran &&
-        $pembayaran->metode_pembayaran == 'midtrans' &&
-        $pembayaran->status_pembayaran == 'pending'
-    )
-        <button type="button" class="btn-action btn-disabled" disabled>
-            Menunggu Pembayaran Midtrans
-        </button>
+                                        {{-- 4. FORM VALIDASI --}}
+                                        @elseif(!$dendaGroup)
+
+                                            <form id="form_{{ $kodeBooking }}"
+                                                method="POST"
+                                                action="{{ route('admin.pengembalian.validasi') }}">
+                                                @csrf
+
+                                                <input type="hidden" name="submit_booking" value="{{ $kodeBooking }}">
+
+                                                @foreach($items as $row)
+                                                    <input type="hidden"
+                                                        id="hk_{{ $row->id }}"
+                                                        name="jenis_kerusakan[{{ $row->id }}]"
+                                                        value="tidak_rusak">
+
+                                                    <input type="hidden"
+                                                        id="hdr_{{ $row->id }}"
+                                                        name="denda_rusak[{{ $row->id }}]"
+                                                        value="0">
+
+                                                    <input type="hidden"
+                                                        id="hca_{{ $row->id }}"
+                                                        name="catatan_admin[{{ $row->id }}]"
+                                                        value="">
+                                                @endforeach
+
+                                                <button type="button"
+                                                        class="btn-action btn-primary-custom"
+                                                        onclick="submitValidasi('{{ $kodeBooking }}', [{{ $items->pluck('id')->join(',') }}])">
+                                                    Selesaikan & Tagih
+                                                </button>
+                                            </form>
 
 
-    {{-- 6. DENDA BELUM BAYAR --}}
-    @elseif($dendaGroup && $dendaGroup->status_denda == 'belum_bayar')
-        <button type="button" class="btn-action btn-disabled" disabled>
-            Menunggu Pembayaran Denda
-        </button>
+                                        {{-- 5. MIDTRANS PENDING --}}
+                                        @elseif(
+                                            $pembayaran &&
+                                            $pembayaran->metode_pembayaran == 'midtrans' &&
+                                            $pembayaran->status_pembayaran == 'pending'
+                                        )
+                                            <button type="button" class="btn-action btn-disabled" disabled>
+                                                Menunggu Pembayaran Midtrans
+                                            </button>
 
 
-    {{-- 7. DEFAULT --}}
-    @else
-        <button type="button" class="btn-action btn-disabled" disabled>
-            Diproses...
-        </button>
-    @endif
+                                        {{-- 6. DENDA BELUM BAYAR --}}
+                                        @elseif($dendaGroup && $dendaGroup->status_denda == 'belum_bayar')
+                                            <button type="button" class="btn-action btn-disabled" disabled>
+                                                Menunggu Pembayaran Denda
+                                            </button>
 
-</td>
+
+                                        {{-- 7. DEFAULT --}}
+                                        @else
+                                            <button type="button" class="btn-action btn-disabled" disabled>
+                                                Diproses...
+                                            </button>
+                                        @endif
+
+                                    </td>
                                     @endif
 
                                 </tr>
