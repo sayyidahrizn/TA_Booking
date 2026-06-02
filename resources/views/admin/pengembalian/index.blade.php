@@ -414,6 +414,7 @@
                                                 ✓ Selesai
                                             </button>
 
+                                            
                                             {{-- CETAK BUKTI HANYA JIKA BUKAN MIDTRANS --}}
                                             @if(!($pembayaran && $pembayaran->metode_pembayaran == 'midtrans'))
                                                 <a href="{{ route('admin.pengembalian.bukti', $dendaGroup->id_denda) }}"
