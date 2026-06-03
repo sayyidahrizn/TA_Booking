@@ -160,7 +160,7 @@
             color: #f97316;
         }
         .card h3 { font-size: 18px; color: #1e3a8a; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .card .price { font-size: 11px; font-weight: bold; color: #f97316; }
+        .card .price { font-size: 17px; font-weight: 700; color: #f97316; }
 
         /* ============================================================ */
         /* FIX KALENDER: NGEBLOCK TOTAL, BERSIH, & MULTIPLE TEXT        */
