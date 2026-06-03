@@ -98,36 +98,74 @@
         }
 
         /* FASILITAS */
-        .content-section { padding: 40px 15px; max-width: 1000px; margin: auto; text-align: center; }
+        .content-section {
+            padding: 50px 20px;
+            max-width: 1400px;
+            margin: auto;
+            text-align: center;
+        }
+
+
+        .jadwal-section {
+            max-width: 100% !important;
+            padding-left: 30px;
+            padding-right: 30px;
+        }
+
         .section-title h2 { font-size: 18px; color: #1e3a8a; margin-bottom: 25px; text-transform: uppercase; letter-spacing: 1px; }
 
         .fasilitas-container { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
-            gap: 12px; 
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
         }
+
         .card { 
-            background: white; 
-            padding: 6px; 
-            border-radius: 6px; 
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
-            border: 1px solid #e2e8f0; 
+            background: white;
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border: 1px solid #e2e8f0;
             text-align: left;
-            transition: 0.3s;
+            transition: all 0.3s ease;
         }
-        .card img { width: 100%; height: 85px; object-fit: cover; border-radius: 4px; margin-bottom: 5px; }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .card h3 {
+            font-size: 16px;
+            color: #1e3a8a;
+            margin-bottom: 8px;
+        }
+
+        .card .price {
+            font-size: 15px;
+            font-weight: bold;
+            color: #f97316;
+        }
         .card h3 { font-size: 11px; color: #1e3a8a; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .card .price { font-size: 11px; font-weight: bold; color: #f97316; }
 
         /* ============================================================ */
         /* FIX KALENDER: NGEBLOCK TOTAL, BERSIH, & MULTIPLE TEXT        */
         /* ============================================================ */
-        .calendar-wrapper { 
-            background: white; 
-            padding: 20px; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
-            max-width: 850px;
+        .calendar-wrapper {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 1300px;
             margin: auto;
         }
 
@@ -189,6 +227,18 @@
             text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         }
 
+        @media (max-width: 992px) {
+            .fasilitas-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 576px) {
+            .fasilitas-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .footer { background: #1e3a8a; color: white; padding: 15px; text-align: center; font-size: 11px; margin-top: 30px; }
     </style>
 </head>
@@ -246,7 +296,7 @@
         </div>
     </section>
 
-    <section class="content-section" id="jadwal" style="background-color: #f1f5f9;">
+    <section class="content-section jadwal-section" id="jadwal" style="background-color: #f1f5f9;">
         <div class="section-title"><h2>Jadwal Kegiatan</h2></div>
         <div class="calendar-wrapper">
             <div id='calendar'></div>
