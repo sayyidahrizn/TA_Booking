@@ -122,11 +122,11 @@
 
         .card { 
             background: white;
-            padding: 12px;
+            padding: 15px;
             border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             border: 1px solid #e2e8f0;
-            text-align: left;
+            text-align: center;
             transition: all 0.3s ease;
         }
 
@@ -134,26 +134,32 @@
             transform: translateY(-5px);
         }
 
-        .card img {
+        .card img { 
             width: 100%;
-            height: 180px;
+            height: 200px;
             object-fit: cover;
             border-radius: 8px;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
 
-        .card h3 {
-            font-size: 16px;
+        .card h3 { 
+            font-size: 18px;
+            font-weight: 700;
             color: #1e3a8a;
             margin-bottom: 8px;
+            line-height: 1.4;
+
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
         }
 
-        .card .price {
-            font-size: 15px;
-            font-weight: bold;
+        .card .price { 
+            font-size: 17px;
+            font-weight: 700;
             color: #f97316;
         }
-        .card h3 { font-size: 11px; color: #1e3a8a; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card h3 { font-size: 18px; color: #1e3a8a; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .card .price { font-size: 11px; font-weight: bold; color: #f97316; }
 
         /* ============================================================ */
