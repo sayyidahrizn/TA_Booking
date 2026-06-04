@@ -145,6 +145,8 @@ class PenyewaanController extends Controller
      */
     public function store(Request $request)
     {
+
+        $usedFasilitas = [];
         $request->validate([
             'keterangan' => 'nullable|string',
             'items' => 'required|array|min:1',
@@ -162,7 +164,33 @@ class PenyewaanController extends Controller
         try {
             foreach ($request->items as $item) {
 
+                if (in_array($item['id_fasilitas'], $usedFasilitas)) {
+                    throw new \Exception('Fasilitas tidak boleh dipesan lebih dari sekali dalam satu booking.');
+                }
+
+                $usedFasilitas[] = $item['id_fasilitas'];
+
+                $mulai = Carbon::parse($item['tgl_mulai']);
+                $selesai = Carbon::parse($item['tgl_selesai']);
+
                 $fasilitas = Fasilitas::lockForUpdate()->findOrFail($item['id_fasilitas']);
+
+                // HITUNG PEMAKAIAN DI WAKTU BENTROK
+                $usedQty = Penyewaan::where('id_fasilitas', $item['id_fasilitas'])
+                    ->whereIn('status_sewa', ['proses', 'disetujui', 'menunggu_validasi_pengembalian'])
+                    ->where(function ($q) use ($mulai, $selesai) {
+                        $q->where('tgl_mulai', '<', $selesai)
+                        ->where('tgl_selesai', '>', $mulai);
+                    })
+                    ->sum('jumlah_sewa');
+
+                $sisaStok = $fasilitas->jumlah - $usedQty;
+
+                if ($item['jumlah_sewa'] > $sisaStok) {
+                    throw new \Exception(
+                        "Stok tidak cukup pada waktu tersebut. Sisa hanya {$sisaStok} unit."
+                    );
+                }
 
                 $mulai = Carbon::parse($item['tgl_mulai']);
                 $selesai = Carbon::parse($item['tgl_selesai']);

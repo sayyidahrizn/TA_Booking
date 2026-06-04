@@ -98,38 +98,21 @@
         display: inline-block;
     }
 
-    .proses {
-        background: #f59e0b;
-    }
-
-    .disetujui {
-        background: #10b981;
-    }
-
-    .selesai {
-        background: #3b82f6;
-    }
-
-    .batal {
-        background: #ef4444;
-    }
-
-    .dibatalkan_user {
-        background: #d63333;
-    }
-
-    .menunggu_pengembalian {
-        background: #0ea5e9;
-    }
-
-    .menunggu_validasi_pengembalian {
-        background: #8b5cf6;
-    }
-
-    .menunggu_pembayaran_denda {
-        background: #ef4444;
-    }
+    .proses { background: #f59e0b; }
+    .disetujui { background: #10b981; }
+    .selesai { background: #3b82f6; }
+    .batal { background: #ef4444; }
+    .dibatalkan_user { background: #d63333; }
+    .menunggu_pengembalian { background: #0ea5e9; }
+    .menunggu_validasi_pengembalian { background: #8b5cf6; }
+    .menunggu_pembayaran_denda { background: #ef4444; }
 </style>
+
+<div style="margin-bottom: 25px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0;">
+    <h2 style="margin: 0; font-size: 22px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 10px;">
+        <span style="color: #3b82f6;">📅</span>  : {{ $tanggalHariIni }}
+    </h2>
+</div>
 
 <div class="grid-container">
 
@@ -192,12 +175,10 @@
 </div>
 
 <div class="charts-grid">
-
     <div class="chart-card">
         <h3 style="margin: 0 0 20px 0; font-size: 15px; color: #1f2937;">
              Pendapatan Bulan Ini
         </h3>
-
         <div style="height: 300px;">
             <canvas id="revenueChart"></canvas>
         </div>
@@ -207,17 +188,13 @@
         <h3 style="margin: 0 0 20px 0; font-size: 15px; color: #1f2937;">
             Status Transaksi
         </h3>
-
         <div style="height: 300px;">
             <canvas id="statusChart"></canvas>
         </div>
     </div>
-
 </div>
 
-<div class="card"
-    style="background: white; border-radius: 12px; padding: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-
+<div class="card" style="background: white; border-radius: 12px; padding: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
     <div style="padding: 20px;">
         <h3 style="margin: 0; font-size: 15px; color: #1f2937;">
             Penyewaan Terbaru
@@ -225,7 +202,6 @@
     </div>
 
     <table class="table-custom">
-
         <thead>
             <tr>
                 <th style="width: 50px; text-align: center;">No</th>
@@ -237,34 +213,26 @@
                 <th style="text-align: center;">Pengembalian</th>
             </tr>
         </thead>
-
         <tbody>
-
             @forelse($penyewaan as $group)
-
                 @php
                     $p = $group->first();
                     $status = strtolower($p->status_sewa);
                     $statusBayar = strtolower($group->status_bayar ?? 'pending');
                 @endphp
-
                 <tr>
-
                     <td style="text-align: center; font-weight: bold; color: #64748b;">
                         {{ $loop->iteration }}
                     </td>
-
                     <td>
                         <strong style="color: #1e293b; font-size: 14px;">
                             {{ $p->user->name ?? $p->nama_penyewa }}
                         </strong>
                         <br>
-
                         <small style="color: #94a3b8;">
                             NIK: {{ $p->nik ?? '-' }}
                         </small>
                     </td>
-
                     <td>
                         @foreach($group as $item)
                             <span class="badge-fasilitas">
@@ -272,114 +240,69 @@
                             </span>
                         @endforeach
                     </td>
-
                     <td style="color: #475569; font-size: 13px;">
                         {{ \Carbon\Carbon::parse($p->tgl_mulai)->format('d M Y') }}
                     </td>
-
                     <td style="text-align: center;">
                         <span class="status-pill {{ $status }}">
                             {{ str_replace('_', ' ', strtoupper($status)) }}
                         </span>
                     </td>
-
-                    {{-- PEMBAYARAN --}}
                     <td style="text-align: center;">
-
                         @if(in_array($status, ['batal', 'dibatalkan_user']))
-
                             <span style="color: #64748b; font-weight: 800; font-size: 11px;">
-                                <i class="fas fa-times-circle"></i>
-                                DIBATALKAN
+                                <i class="fas fa-times-circle"></i> DIBATALKAN
                             </span>
-
                         @elseif($statusBayar == 'lunas')
-
                             <span style="color: #10b981; font-weight: 800; font-size: 11px;">
-                                <i class="fas fa-check-circle"></i>
-                                LUNAS
+                                <i class="fas fa-check-circle"></i> LUNAS
                             </span>
-
                         @else
-
                             <span style="color: #ef4444; font-weight: 800; font-size: 11px;">
-                                <i class="fas fa-clock"></i>
-                                PENDING
+                                <i class="fas fa-clock"></i> PENDING
                             </span>
-
                         @endif
-
                     </td>
-
-                    {{-- PENGEMBALIAN --}}
                     <td style="text-align: center;">
-
                         @if(in_array($status, ['batal', 'dibatalkan_user']))
-
                             <span style="color: #64748b; font-weight: 800; font-size: 11px;">
-                                <i class="fas fa-times-circle"></i>
-                                DIBATALKAN
+                                <i class="fas fa-times-circle"></i> DIBATALKAN
                             </span>
-
                         @elseif($status == 'selesai' || $p->pengembalian)
-
                             <span style="color: #3b82f6; font-weight: 800; font-size: 11px;">
-                                <i class="fas fa-undo-alt"></i>
-                                DIKEMBALIKAN
+                                <i class="fas fa-undo-alt"></i> DIKEMBALIKAN
                             </span>
-
                         @else
-
                             <span style="color: #94a3b8; font-weight: 800; font-size: 11px;">
-                                <i class="fas fa-history"></i>
-                                BELUM
+                                <i class="fas fa-history"></i> BELUM
                             </span>
-
                         @endif
-
                     </td>
-
                 </tr>
-
             @empty
-
                 <tr>
-                    <td colspan="7"
-                        style="text-align: center; padding: 40px; color: #94a3b8;">
+                    <td colspan="7" style="text-align: center; padding: 40px; color: #94a3b8;">
                         Belum ada data penyewaan terbaru.
                     </td>
                 </tr>
-
             @endforelse
-
         </tbody>
-
     </table>
-
 </div>
 
 <script>
     Chart.defaults.font.family = "'Inter', sans-serif";
     Chart.defaults.color = '#94a3b8';
 
-    // =========================
     // GRAFIK PENDAPATAN
-    // =========================
-
     const dataPendapatan = {!! json_encode($dataGrafik ?? []) !!};
-
     const labelHari = {!! json_encode($labelHari) !!};
-
-    const ctxRevenue = document
-        .getElementById('revenueChart')
-        .getContext('2d');
+    const ctxRevenue = document.getElementById('revenueChart').getContext('2d');
 
     new Chart(ctxRevenue, {
         type: 'line',
-
         data: {
             labels: labelHari,
-
             datasets: [{
                 label: 'Pendapatan',
                 data: dataPendapatan,
@@ -392,55 +315,25 @@
                 pointBackgroundColor: '#3b82f6',
             }]
         },
-
         options: {
             maintainAspectRatio: false,
-
-            plugins: {
-                legend: {
-                    display: false
-                }
-            },
-
+            plugins: { legend: { display: false } },
             scales: {
                 y: {
                     beginAtZero: true,
-                    ticks: {
-                        callback: value =>
-                            'Rp ' + value.toLocaleString('id-ID')
-                    }
+                    ticks: { callback: value => 'Rp ' + value.toLocaleString('id-ID') }
                 },
-
-                x: {
-                    grid: {
-                        display: false
-                    }
-                }
+                x: { grid: { display: false } }
             }
         }
     });
 
-    // =========================
     // GRAFIK STATUS
-    // =========================
-
-    const ctxStatus = document
-        .getElementById('statusChart')
-        .getContext('2d');
-
+    const ctxStatus = document.getElementById('statusChart').getContext('2d');
     new Chart(ctxStatus, {
         type: 'doughnut',
-
         data: {
-            labels: [
-                'Disetujui/Selesai',
-                'Pending/Proses',
-                'Menunggu Pengembalian',
-                'Validasi Pengembalian',
-                'Pembayaran Denda',
-                'Dibatalkan'
-            ],
-
+            labels: ['Disetujui/Selesai', 'Pending/Proses', 'Menunggu Pengembalian', 'Validasi Pengembalian', 'Pembayaran Denda', 'Dibatalkan'],
             datasets: [{
                 data: [
                     {{ $disetujuiSelesai ?? 0 }},
@@ -450,29 +343,14 @@
                     {{ $menungguDenda ?? 0 }},
                     {{ $dibatalkan ?? 0 }}
                 ],
-
-                backgroundColor: [
-                    '#10b981',
-                    '#f59e0b',
-                    '#0ea5e9',
-                    '#8b5cf6',
-                    '#ef4444',
-                    '#64748b'
-                ],
-
+                backgroundColor: ['#10b981', '#f59e0b', '#0ea5e9', '#8b5cf6', '#ef4444', '#64748b'],
                 borderWidth: 0,
             }]
         },
-
         options: {
             maintainAspectRatio: false,
             cutout: '75%',
-
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
-            }
+            plugins: { legend: { position: 'bottom' } }
         }
     });
 </script>

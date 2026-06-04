@@ -113,98 +113,123 @@
 
     {{-- JUDUL --}}
     <div class="judul-laporan">
-        <h3>LAPORAN {{ strtoupper($jenis) }}</h3>
+        <h3>LAPORAN {{ $jenis == 'fasilitas' ? 'FASILITAS TERPOPULER' : strtoupper($jenis) }}</h3>
         <p>Periode: <strong>{{ $periodeTeks }}</strong></p>
     </div>
 
     {{-- TABLE --}}
-    <table>
-        <thead>
-            <tr>
-                <th width="3%">No</th>
-                <th width="10%">Kode Booking</th>
-                <th width="10%">NIK</th>
-                <th width="12%">Penyewa</th>
-                <th width="12%">Fasilitas</th>
-                <th width="4%">Jml</th>
-                <th width="10%">Total Sewa</th>
-                <th width="10%">Status Sewa</th>
-                <th width="8%">Kondisi</th>
-                <th width="10%">Jml Denda</th>
-                <th width="12%">Alasan / Catatan</th>
-                <th width="8%">Status Denda</th>
-                <th width="10%">Tanggal</th>
-            </tr>
-        </thead>
+    @if($jenis == 'fasilitas')
+        {{-- TAMPILAN KHUSUS LAPORAN FASILITAS TERPOPULER --}}
+        <table>
+            <thead>
+                <tr>
+                    <th width="10%">No</th>
+                    <th width="65%">Nama Fasilitas</th>
+                    <th width="25%">Total Dipinjam</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($dataFasilitas as $i => $item)
+                    <tr>
+                        <td class="text-center">{{ $i + 1 }}</td>
+                        <td style="padding-left: 6px;"><strong>{{ $item->nama_fasilitas }}</strong></td>
+                        <td class="text-center">{{ $item->total_peminjaman }} kali</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="3" class="text-center">Data laporan tidak ditemukan</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    @else
+        {{-- TAMPILAN BAWAAN UNTUK LAPORAN SEWA / DENDA / SEMUA --}}
+        <table>
+            <thead>
+                <tr>
+                    <th width="3%">No</th>
+                    <th width="10%">Kode Booking</th>
+                    <th width="10%">NIK</th>
+                    <th width="12%">Penyewa</th>
+                    <th width="12%">Fasilitas</th>
+                    <th width="4%">Jml</th>
+                    <th width="10%">Total Sewa</th>
+                    <th width="10%">Status Sewa</th>
+                    <th width="8%">Kondisi</th>
+                    <th width="10%">Jml Denda</th>
+                    <th width="12%">Alasan / Catatan</th>
+                    <th width="8%">Status Denda</th>
+                    <th width="10%">Tanggal</th>
+                </tr>
+            </thead>
 
-        <tbody>
-            @php
-                $grouped = $detailLaporan->groupBy('kode_booking');
-            @endphp
-
-            @forelse($grouped as $kodeBooking => $items)
+            <tbody>
                 @php
-                    $first = $items->first();
-                    $rowspan = $items->count();
-
-                    // Logic Status Sewa
-                    $statusSewa = ucfirst($first->status_sewa ?? '-');
-                    if($first->status_sewa == 'dibatalkan_user') $statusSewa = 'Dibatalkan';
-                    elseif($first->status_sewa == 'menunggu_pengembalian') $statusSewa = 'Mng. Kembali';
-                    elseif($first->status_sewa == 'menunggu_validasi_pengembalian') $statusSewa = 'Validasi';
-                    elseif($first->status_sewa == 'menunggu_pembayaran_denda') $statusSewa = 'Selesai Pengembalian';
-
-                    // DATA DENDA (Aggregated for multiple items)
-                    $totalNominalDenda = $first->denda->sum('total_denda');
-                    $semuaKondisi = $first->denda->pluck('jenis_kerusakan')->unique()->filter()->implode(', ');
-                    $semuaAlasan = $first->denda->pluck('keterangan_kerusakan')->unique()->filter()->implode(' | ');
-                    
-                    // Status Denda: Jika ada satu saja yang belum lunas
-                    $isAdaTunggakan = $first->denda->contains('status_denda', 'belum_bayar');
-                    $statusDenda = '-';
-                    if($first->denda->isNotEmpty()){
-                        $statusDenda = $isAdaTunggakan ? 'Belum Bayar' : 'Lunas';
-                    }
+                    $grouped = $detailLaporan->groupBy('kode_booking');
                 @endphp
 
-                @foreach($items as $index => $item)
-                    <tr>
-                        @if($index == 0)
-                            <td class="text-center" rowspan="{{ $rowspan }}">{{ $loop->parent->iteration }}</td>
-                            <td class="text-center" rowspan="{{ $rowspan }}">{{ $kodeBooking }}</td>
-                            <td class="text-center" rowspan="{{ $rowspan }}">{{ $first->user->nik ?? '-' }}</td>
-                            <td rowspan="{{ $rowspan }}">{{ $first->user->name ?? '-' }}</td>
-                        @endif
+                @forelse($grouped as $kodeBooking => $items)
+                    @php
+                        $first = $items->first();
+                        $rowspan = $items->count();
 
-                        <td>{{ $item->fasilitas->nama_fasilitas ?? '-' }}</td>
-                        <td class="text-center">{{ $item->jumlah_sewa }}</td>
+                        // Logic Status Sewa
+                        $statusSewa = ucfirst($first->status_sewa ?? '-');
+                        if($first->status_sewa == 'dibatalkan_user') $statusSewa = 'Dibatalkan';
+                        elseif($first->status_sewa == 'menunggu_pengembalian') $statusSewa = 'Mng. Kembali';
+                        elseif($first->status_sewa == 'menunggu_validasi_pengembalian') $statusSewa = 'Validasi';
+                        elseif($first->status_sewa == 'menunggu_pembayaran_denda') $statusSewa = 'Selesai Pengembalian';
 
-                        @if($index == 0)
-                            <td class="text-right" rowspan="{{ $rowspan }}">
-                                Rp {{ number_format($items->sum('total_harga'), 0, ',', '.') }}
-                            </td>
-                            <td class="text-center" rowspan="{{ $rowspan }}">{{ $statusSewa }}</td>
-                            <td class="text-center" rowspan="{{ $rowspan }}">{{ $semuaKondisi ?: '-' }}</td>
-                            <td class="text-right" rowspan="{{ $rowspan }}">
-                                {{ $totalNominalDenda > 0 ? 'Rp ' . number_format($totalNominalDenda, 0, ',', '.') : '-' }}
-                            </td>
-                            <td rowspan="{{ $rowspan }}">{{ $semuaAlasan ?: '-' }}</td>
-                            <td class="text-center" rowspan="{{ $rowspan }}">{{ $statusDenda }}</td>
-                            <td class="text-center" rowspan="{{ $rowspan }}">
-                                {{ $first->created_at->format('d/m/Y') }}
-                            </td>
-                        @endif
-                    </tr>
-                @endforeach
-            @empty
-                <tr><td colspan="13" class="text-center">Data laporan tidak ditemukan</td></tr>
-            @endforelse
-        </tbody>
-    </table>
+                        // DATA DENDA (Aggregated for multiple items)
+                        $totalNominalDenda = $first->denda->sum('total_denda');
+                        $semuaKondisi = $first->denda->pluck('jenis_kerusakan')->unique()->filter()->implode(', ');
+                        $semuaAlasan = $first->denda->pluck('keterangan_kerusakan')->unique()->filter()->implode(' | ');
+                        
+                        // Status Denda: Jika ada satu saja yang belum lunas
+                        $isAdaTunggakan = $first->denda->contains('status_denda', 'belum_bayar');
+                        $statusDenda = '-';
+                        if($first->denda->isNotEmpty()){
+                            $statusDenda = $isAdaTunggakan ? 'Belum Bayar' : 'Lunas';
+                        }
+                    @endphp
+
+                    @foreach($items as $index => $item)
+                        <tr>
+                            @if($index == 0)
+                                <td class="text-center" rowspan="{{ $rowspan }}">{{ $loop->parent->iteration }}</td>
+                                <td class="text-center" rowspan="{{ $rowspan }}">{{ $kodeBooking }}</td>
+                                <td class="text-center" rowspan="{{ $rowspan }}">{{ $first->user->nik ?? '-' }}</td>
+                                <td rowspan="{{ $rowspan }}">{{ $first->user->name ?? '-' }}</td>
+                            @endif
+
+                            <td>{{ $item->fasilitas->nama_fasilitas ?? '-' }}</td>
+                            <td class="text-center">{{ $item->jumlah_sewa }}</td>
+
+                            @if($index == 0)
+                                <td class="text-right" rowspan="{{ $rowspan }}">
+                                    Rp {{ number_format($items->sum('total_harga'), 0, ',', '.') }}
+                                </td>
+                                <td class="text-center" rowspan="{{ $rowspan }}">{{ $statusSewa }}</td>
+                                <td class="text-center" rowspan="{{ $rowspan }}">{{ $semuaKondisi ?: '-' }}</td>
+                                <td class="text-right" rowspan="{{ $rowspan }}">
+                                    {{ $totalNominalDenda > 0 ? 'Rp ' . number_format($totalNominalDenda, 0, ',', '.') : '-' }}
+                                </td>
+                                <td rowspan="{{ $rowspan }}">{{ $semuaAlasan ?: '-' }}</td>
+                                <td class="text-center" rowspan="{{ $rowspan }}">{{ $statusDenda }}</td>
+                                <td class="text-center" rowspan="{{ $rowspan }}">
+                                    {{ $first->created_at->format('d/m/Y') }}
+                                </td>
+                            @endif
+                        </tr>
+                    @endforeach
+                @empty
+                    <tr><td colspan="13" class="text-center">Data laporan tidak ditemukan</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    @endif
 
     <div class="clearfix">
         <div class="footer">
-            <p>* Laporan otomatis dihasilkan oleh Sistem Desa Kesamben pada {{ $tglCetak }} pukul {{ $waktuCetak }} WIB.</p>
+            <p>* Laporan otomatis dihasilkan oleh Sistem Desa Kesamben pada {{ $tglCetak }} pukul {{ $waktuCetak ?? date('H:i') }} WIB.</p>
         </div>
         <div class="ttd-box">
             <p>Blitar, {{ $tglCetak }}</p>

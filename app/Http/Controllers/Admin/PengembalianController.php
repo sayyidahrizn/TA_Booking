@@ -178,19 +178,16 @@ class PengembalianController extends Controller
                 DB::table('penyewaan')->whereIn('id_penyewaan', $penyewaanIds)
                     ->update(['status_sewa' => 'menunggu_pembayaran_denda']);
                 
-                // WA Notifikasi...
+                // EMAIL Notifikasi...
                 $user = $penyewaanUtama->user;
 
                 if ($user && $user->email) {
 
                     Mail::to($user->email)
-                        ->send(
-                            new DendaPengembalianMail(
-                                $user,
-                                $kodeBooking,
-                                $totalDendaFinal
-                            )
-                        );
+                        ->send(new DendaPengembalianMail(
+                            $penyewaanUtama,
+                            $totalDendaFinal
+                        ));
                 }
             } else {
                 // Jika benar-benar 0 (tidak telat & tidak rusak), status baru selesai

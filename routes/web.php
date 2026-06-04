@@ -137,6 +137,7 @@ Route::prefix('admin')->middleware(['auth', 'isAdmin'])->group(function () {
     Route::get('/pengembalian/bukti-denda/{id}', [AdminPengembalianController::class, 'buktiDenda'])->name('admin.pengembalian.bukti');
 
     Route::post('/denda/tunai/{id}',[PembayaranController::class, 'bayarTunai'])->name('admin.denda.tunai');
+    Route::get('/admin/laporan/fasilitas-terpopuler', [LaporanController::class, 'fasilitasTerpopuler'])->name('admin.laporan.fasilitas');
 
     });
 

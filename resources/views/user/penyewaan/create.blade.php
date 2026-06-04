@@ -287,6 +287,15 @@
 
         const id = select.value;
 
+        // CEK DUPLIKAT FASILITAS DALAM CART
+        if (items.some(i => i.id === id)) {
+            return Swal.fire({
+                icon: 'warning',
+                title: 'Duplikat Fasilitas',
+                text: 'Fasilitas ini sudah ada di keranjang booking.'
+            });
+        }
+
         const selected =
             select.options[select.selectedIndex];
 

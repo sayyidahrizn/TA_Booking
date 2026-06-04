@@ -334,6 +334,9 @@
                     <a href="{{ route('admin.laporan.denda') }}" class="{{ request()->routeIs('admin.laporan.denda') ? 'active' : '' }}">
                         Pemasukan Denda
                     </a>
+                    <a href="{{ route('admin.laporan.fasilitas') }}" class="{{ request()->routeIs('admin.laporan.fasilitas') ? 'active' : '' }}">
+                        Fasilitas
+                    </a>
                 </div>
             </div>
         </div>

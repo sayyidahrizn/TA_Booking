@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Penyewaan;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\DB;
 
 class LaporanController extends Controller
 {
@@ -108,11 +109,91 @@ class LaporanController extends Controller
             ])
             ->get()
             ->sum(function($item) {
-                // Akumulasi total_denda dari semua denda yang ada di koleksi
                 return $item->denda->sum('total_denda');
             });
 
         return view('admin.laporan.denda', $data);
+    }
+
+    public function fasilitasTerpopuler(Request $request)
+    {
+        $startDate = $request->start_date;
+        $endDate   = $request->end_date;
+
+        // Base Query dari Master Fasilitas agar ke-13 fasilitas terdaftar seluruhnya
+        $query = \App\Models\Fasilitas::withCount(['penyewaan as total_peminjaman' => function ($q) use ($startDate, $endDate) {
+            if ($startDate && $endDate) {
+                $q->whereBetween('created_at', [
+                    $startDate . ' 00:00:00',
+                    $endDate . ' 23:59:59'
+                ]);
+            }
+        }])->orderByDesc('total_peminjaman');
+
+        // Cetak PDF terpadu menggunakan admin.laporan.pdf
+        if ($request->action == 'pdf') {
+            $dataFasilitas = $query->get();
+            $jenis = 'fasilitas';
+            
+            $periodeTeks = ($startDate && $endDate) 
+                ? Carbon::parse($startDate)->translatedFormat('d F Y') . ' s/d ' . Carbon::parse($endDate)->translatedFormat('d F Y')
+                : "Semua Waktu";
+            
+            $tglCetak = Carbon::now('Asia/Jakarta')->translatedFormat('d F Y');
+            $waktuCetak = Carbon::now('Asia/Jakarta')->format('H:i');
+            
+            $pdf = Pdf::loadView('admin.laporan.pdf', compact('dataFasilitas', 'jenis', 'startDate', 'endDate', 'periodeTeks', 'tglCetak', 'waktuCetak'))
+                      ->setPaper('a4', 'portrait'); // Menggunakan Portrait khusus fasilitas agar proporsional
+            return $pdf->download('Laporan-Fasilitas-Terpopuler-'.date('d-m-Y').'.pdf');
+        }
+
+        if ($request->action == 'excel') {
+            $dataFasilitas = $query->get();
+            return $this->downloadFasilitasExcel($dataFasilitas, $startDate, $endDate);
+        }
+
+        // Tampilan dashboard web dengan batasan 8 baris halaman (bisa diganti ke 10 atau sesukamu)
+        $dataFasilitas = $query->paginate(8)->withQueryString();
+
+        return view('admin.laporan.fasilitas', compact('dataFasilitas', 'startDate', 'endDate'));
+    }
+
+    private function downloadFasilitasExcel($dataFasilitas, $startDate, $endDate)
+    {
+        $fileName = 'Laporan-Fasilitas-Terpopuler-'.date('d-m-Y').'.csv';
+        $periodeTeks = ($startDate && $endDate) ? $startDate . ' s/d ' . $endDate : "Semua Waktu";
+
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$fileName",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate",
+            "Expires"             => "0"
+        ];
+
+        $callback = function () use ($dataFasilitas, $periodeTeks) {
+            $file = fopen('php://output', 'w');
+            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            $delimiter = ";";
+
+            fputcsv($file, ['LAPORAN FASILITAS TERPOPULER'], $delimiter);
+            fputcsv($file, ['Periode', $periodeTeks], $delimiter);
+            fputcsv($file, ['Tanggal Cetak', Carbon::now('Asia/Jakarta')->translatedFormat('d F Y H:i') . ' WIB'], $delimiter);
+            fputcsv($file, [], $delimiter);
+
+            fputcsv($file, ['NO', 'NAMA FASILITAS', 'TOTAL DIPINJAM'], $delimiter);
+
+            foreach ($dataFasilitas as $key => $item) {
+                fputcsv($file, [
+                    $key + 1,
+                    $item->nama_fasilitas,
+                    $item->total_peminjaman . ' kali'
+                ], $delimiter);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     public function downloadExcel(Request $request)
@@ -145,7 +226,6 @@ class LaporanController extends Controller
             ], $delimiter);
 
             foreach ($data['detailLaporan'] as $key => $item) {
-                // Menggabungkan data denda dari HasMany
                 $totalNominal = $item->denda->sum('total_denda');
                 $jenisDenda   = $item->denda->pluck('jenis_kerusakan')->filter()->implode(', ');
                 $alasanDenda  = $item->denda->pluck('keterangan_kerusakan')->filter()->implode(' | ');

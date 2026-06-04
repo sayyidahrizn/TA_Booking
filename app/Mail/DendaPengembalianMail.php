@@ -6,17 +6,12 @@ use Illuminate\Mail\Mailable;
 
 class DendaPengembalianMail extends Mailable
 {
-    public $user;
-    public $kodeBooking;
+    public $penyewaan;
     public $totalDenda;
 
-    public function __construct(
-        $user,
-        $kodeBooking,
-        $totalDenda
-    ) {
-        $this->user = $user;
-        $this->kodeBooking = $kodeBooking;
+    public function __construct($penyewaan, $totalDenda)
+    {
+        $this->penyewaan = $penyewaan;
         $this->totalDenda = $totalDenda;
     }
 
@@ -24,6 +19,10 @@ class DendaPengembalianMail extends Mailable
     {
         return $this
             ->subject('Tagihan Denda Pengembalian')
-            ->view('emails.denda_pengembalian');
+            ->view('emails.denda_pengembalian')
+            ->with([
+                'penyewaan' => $this->penyewaan,
+                'totalDenda' => $this->totalDenda,
+            ]);
     }
 }

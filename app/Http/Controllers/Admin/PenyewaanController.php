@@ -247,6 +247,8 @@ class PenyewaanController extends Controller
             })
             ->distinct('kode_booking')
             ->count('kode_booking');
+        $periode = $now->translatedFormat('F Y'); 
+        $tanggalHariIni = $now->translatedFormat('d F Y'); 
 
         /*
         |--------------------------------------------------------------------------
@@ -324,7 +326,7 @@ class PenyewaanController extends Controller
         return view('admin.dashboard', compact(
             'totalPendapatan', 'totalFasilitas', 'totalKembali', 'totalPenyewaan',
             'pending', 'menungguPengembalian', 'validasiPengembalian', 'menungguDenda',
-            'dataGrafik', 'labelHari', 'penyewaan', 'disetujuiSelesai', 'dibatalkan'
+            'dataGrafik', 'labelHari', 'penyewaan', 'disetujuiSelesai', 'dibatalkan',  'periode', 'tanggalHariIni'
         ));
     }
 
