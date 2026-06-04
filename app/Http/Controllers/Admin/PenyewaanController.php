@@ -11,6 +11,10 @@ use App\Models\Pembayaran;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\PenyewaanDisetujuiMail;
+use App\Mail\PenyewaanDitolakMail;
+
 
 class PenyewaanController extends Controller
 {
@@ -371,81 +375,151 @@ class PenyewaanController extends Controller
      */
     public function konfirmasiGroup($kode)
     {
-        DB::transaction(function () use ($kode) {
+        DB::beginTransaction();
 
-            $data = Penyewaan::where('kode_booking', $kode)->get();
+        try {
+            // FIX 1: Ditambahkan with('user') agar data user terbawa ke file email blade
+            $data = Penyewaan::with('user')->where('kode_booking', $kode)->get();
+
+            if ($data->isEmpty()) {
+                return back()->with('error', 'Data booking tidak ditemukan.');
+            }
+
+            $userEmail = null;
+            $itemUntukEmail = null;
 
             foreach ($data as $item) {
+                if ($item->status_sewa == 'disetujui') {
+                    continue;
+                }
 
-                // 1. SETUJUI SEWA
-                $item->update([
-                    'status_sewa' => 'disetujui'
-                ]);
+                // CEK DAN KURANGI STOK FASILITAS
+                $fasilitas = Fasilitas::lockForUpdate()->find($item->id_fasilitas);
+                if (!$fasilitas) {
+                    throw new \Exception('Fasilitas tidak ditemukan.');
+                }
 
-                // 2. CEK PEMBAYARAN SUDAH ADA ATAU BELUM
+                if ($fasilitas->jumlah < $item->jumlah_sewa) {
+                    throw new \Exception('Stok "' . $fasilitas->nama_fasilitas . '" tidak mencukupi.');
+                }
+
+                $fasilitas->decrement('jumlah', $item->jumlah_sewa);
+                $fasilitas->refresh();
+
+                if ($fasilitas->jumlah <= 0) {
+                    $fasilitas->update(['status_fasilitas' => 'tidak tersedia']);
+                }
+
+                // FORCE SAVE STATUS (Dipaksa simpan ke database)
+                $item->status_sewa = 'disetujui';
+                $item->save(); 
+
+                // Ambil data user untuk dikirimi email nanti
+                if ($item->user && $item->user->email) {
+                    $userEmail = $item->user->email;
+                    $itemUntukEmail = $item;
+                }
+
+                // LOGIKA UPDATE PEMBAYARAN PENDING
                 $pembayaran = Pembayaran::where('id_penyewaan', $item->id_penyewaan)->first();
-
                 if ($pembayaran) {
-                    /**
-                     * PERBAIKAN: 
-                     * Ambil metode pembayaran yang sudah dipilih user di awal (Tunai atau Midtrans).
-                     * Jangan di-hardcode ke 'midtrans'.
-                     */
-                    $metodeUser = $pembayaran->metode_pembayaran ?? 'midtrans';
-
                     $pembayaran->update([
-                        'jenis_pembayaran' => 'pelunasan',
-                        'metode_pembayaran' => $metodeUser, // Menggunakan metode pilihan user
+                        'jenis_pembayaran'  => 'pelunasan',
                         'status_pembayaran' => 'pending'
                     ]);
                 } else {
-                    // Jaga-jaga jika record pembayaran belum terbuat
                     Pembayaran::create([
-                        'id_penyewaan' => $item->id_penyewaan,
-                        'kode_pembayaran' => 'PAY-' . time(),
-                        'jenis_pembayaran' => 'lunas',
-                        'metode_pembayaran' => 'midtrans', // Default jika record baru
-                        'jumlah_bayar' => 0,
+                        'id_penyewaan'      => $item->id_penyewaan,
+                        'kode_pembayaran'   => 'PAY-' . time() . '-' . $item->id_penyewaan,
+                        'jenis_pembayaran'  => 'pelunasan',
+                        'metode_pembayaran' => 'midtrans',
+                        'jumlah_bayar'      => 0,
                         'status_pembayaran' => 'pending',
                     ]);
                 }
             }
-        });
 
-        return back()->with('success', 'Booking ' . $kode . ' disetujui.');
+            // FIX 2: PROSES EMAIL DIKELUARKAN DARI LOOP (Hanya kirim 1 email per kode booking)
+            if ($userEmail && $itemUntukEmail) {
+                Mail::to($userEmail)->send(new PenyewaanDisetujuiMail($itemUntukEmail));
+            }
+
+            DB::commit();
+            return back()->with('success', 'Booking ' . $kode . ' berhasil disetujui.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            // Menampilkan pesan eror asli di dashboard jika sistem gagal menyimpan
+            return back()->with('error', 'Gagal menyetujui booking: ' . $e->getMessage());
+        }
     }
 
     /**
      * TOLAK BOOKING
      */
-    public function tolakGroup($kode)
+    public function tolakGroup(Request $request, $kode)
     {
-        DB::transaction(function () use ($kode) {
+        $request->validate([
+            'alasan_penolakan' => 'required|string|max:255'
+        ]);
 
-            $data = Penyewaan::where('kode_booking', $kode)->get();
+        DB::beginTransaction();
+
+        try {
+            // FIX 1: Ditambahkan with('user') agar data user terbawa ke file email blade
+            $data = Penyewaan::with('user')->where('kode_booking', $kode)->get();
+
+            if ($data->isEmpty()) {
+                return back()->with('error', 'Data booking tidak ditemukan.');
+            }
+
+            $alasan = $request->alasan_penolakan;
+            $userEmail = null;
+            $itemUntukEmail = null;
 
             foreach ($data as $item) {
+                if ($item->status_sewa === 'batal') {
+                    continue;
+                }
 
-                if ($item->status_sewa !== 'batal') {
-                    $fasilitas = Fasilitas::find($item->id_fasilitas);
+                // Kembalikan Stok Fasilitas
+                $fasilitas = Fasilitas::find($item->id_fasilitas);
+                if ($fasilitas) {
+                    $fasilitas->increment('jumlah', $item->jumlah_sewa);
+                    $fasilitas->refresh();
 
-                    if ($fasilitas) {
-                        $fasilitas->increment('jumlah', $item->jumlah_sewa);
-
-                        if ($fasilitas->jumlah > 0) {
-                            $fasilitas->update(['status_fasilitas' => 'tersedia']);
-                        }
+                    if ($fasilitas->jumlah > 0) {
+                        $fasilitas->update(['status_fasilitas' => 'tersedia']);
                     }
                 }
 
-                $item->update(['status_sewa' => 'batal']);
+                // Force Ubah status sewa & simpan ke database
+                $item->status_sewa = 'batal';
+                $item->save();
 
-                Pembayaran::where('id_penyewaan', $item->id_penyewaan)
-                    ->update(['status_pembayaran' => 'batal']);
+                // Batalkan transaksi pembayaran terkait
+                Pembayaran::where('id_penyewaan', $item->id_penyewaan)->update([
+                    'status_pembayaran' => 'gagal'
+                ]);
+
+                if ($item->user && $item->user->email) {
+                    $userEmail = $item->user->email;
+                    $itemUntukEmail = $item;
+                }
             }
-        });
 
-        return back()->with('success', 'Booking ' . $kode . ' telah ditolak.');
+            // FIX 2: PROSES EMAIL DIKELUARKAN DARI LOOP (Hanya kirim 1 email per kode booking)
+            if ($userEmail && $itemUntukEmail) {
+                Mail::to($userEmail)->send(new PenyewaanDitolakMail($itemUntukEmail, $alasan));
+            }
+
+            DB::commit();
+            return back()->with('success', 'Booking ' . $kode . ' telah ditolak.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal menolak booking: ' . $e->getMessage());
+        }
     }
 
     /**

@@ -203,11 +203,6 @@ class PenyewaanController extends Controller
 
                     'status_pembayaran' => 'pending',
                 ]);
-
-                // ===============================
-                // KURANGI STOK
-                // ===============================
-                $fasilitas->decrement('jumlah', $item['jumlah_sewa']);
             }
 
             DB::commit();

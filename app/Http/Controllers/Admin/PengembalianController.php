@@ -6,11 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Pengembalian;
 use App\Models\Denda;
 use App\Models\Pembayaran;
-use App\Services\FonnteService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\DendaPengembalianMail;
 use Carbon\Carbon;
 
 class PengembalianController extends Controller
@@ -125,10 +126,33 @@ class PengembalianController extends Controller
                 $totalDendaRusak += $biayaRusakItem;
 
                 // 3. Update status item pengembalian
-                $item->update([
-                    'status_validasi' => 'disetujui',
-                    'catatan_admin'   => $catatan,
-                ]);
+                if ($item->status_validasi != 'disetujui') {
+
+                    $item->update([
+                        'status_validasi' => 'disetujui',
+                        'catatan_admin'   => $catatan,
+                    ]);
+
+                    // kembalikan stok fasilitas
+                    $fasilitas = $item->penyewaan->fasilitas;
+
+                    if ($fasilitas) {
+
+                        $fasilitas->increment(
+                            'jumlah',
+                            $item->penyewaan->jumlah_sewa
+                        );
+
+                        $fasilitas->refresh();
+
+                        if ($fasilitas->jumlah > 0) {
+
+                            $fasilitas->update([
+                                'status_fasilitas' => 'tersedia'
+                            ]);
+                        }
+                    }
+                }
 
                 if($catatan) {
                     $catatanGrup[] = $item->penyewaan->fasilitas->nama_fasilitas . ": " . $catatan;
@@ -156,9 +180,17 @@ class PengembalianController extends Controller
                 
                 // WA Notifikasi...
                 $user = $penyewaanUtama->user;
-                if ($user && $user->no_hp) {
-                    $pesan = "Halo *{$user->name}*\n\nPengembalian fasilitas kode booking *{$kodeBooking}* sudah divalidasi.\nTotal Denda: *Rp " . number_format($totalDendaFinal, 0, ',', '.') . "*\nSilakan selesaikan pembayaran denda melalui dashboard.";
-                    FonnteService::send($user->no_hp, $pesan);
+
+                if ($user && $user->email) {
+
+                    Mail::to($user->email)
+                        ->send(
+                            new DendaPengembalianMail(
+                                $user,
+                                $kodeBooking,
+                                $totalDendaFinal
+                            )
+                        );
                 }
             } else {
                 // Jika benar-benar 0 (tidak telat & tidak rusak), status baru selesai

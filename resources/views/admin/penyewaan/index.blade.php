@@ -235,14 +235,38 @@
                         <td style="text-align: center;">
                             <div class="btn-group">
                                 @if($first->status_sewa == 'proses')
+                                    {{-- 1. PROSES PEMETAAN DATA DIPINDAH KE SINI --}}
+                                    @php
+                                        $fasilitasMapped = $group->map(function($item) {
+                                            $stok = $item->fasilitas->jumlah ?? 0;
+                                            return [
+                                                "nama" => $item->fasilitas->nama_fasilitas,
+                                                "qty" => $item->jumlah_sewa,
+                                                "stok" => $stok,
+                                                "sisa" => $stok - $item->jumlah_sewa
+                                            ];
+                                        })->values(); // ->values() memastikan format array javascript tetap berurutan ([])
+                                    @endphp
+
                                     <form method="POST" action="{{ route('admin.penyewaan.konfirmasi.group', ['kode'=>$kode]) }}">
                                         @csrf
-                                        <button type="button" class="btn-action btn-approve btn-submit-approve">Setujui</button>
+                                        {{-- 2. TOMBOL JADI LEBIH BERSIH DAN BEBAS ERROR PARSING --}}
+                                        <button
+                                            type="button"
+                                            class="btn-action btn-approve btn-submit-approve"
+                                            data-fasilitas="{{ json_encode($fasilitasMapped) }}">
+                                            Setujui
+                                        </button>
                                     </form>
 
                                     <form method="POST" action="{{ route('admin.penyewaan.tolak.group', ['kode'=>$kode]) }}">
                                         @csrf
-                                        <button type="button" class="btn-action btn-reject btn-submit-reject">Tolak</button>
+
+                                        <input type="hidden" name="alasan_penolakan" class="alasan-penolakan">
+
+                                        <button type="button" class="btn-action btn-reject btn-submit-reject">
+                                            Tolak
+                                        </button>
                                     </form>
                                 @else
                                     @if($first->status_sewa == 'dibatalkan_user')
@@ -311,46 +335,132 @@
     document.addEventListener('DOMContentLoaded', function () {
         // Handle Submit Buttons dengan SweetAlert (Tetap Seperti Kode Asli Anda)
         const approveButtons = document.querySelectorAll('.btn-submit-approve');
+
         approveButtons.forEach(button => {
+
             button.addEventListener('click', function () {
+
+                const fasilitas = JSON.parse(this.dataset.fasilitas);
+
                 const form = this.closest('form');
-                Swal.fire({
-                    title: 'Setujui Penyewaan?',
-                    text: "Apakah Anda yakin ingin menyetujui penyewaan ini?",
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonColor: '#10b981',
-                    cancelButtonColor: '#64748b',
-                    confirmButtonText: 'Ya, Setujui Sekarang!',
-                    reverseButtons: true
-                }).then((result) => {
-                    if (result.isConfirmed) { form.submit(); }
+
+                let html = '';
+                let stokKurang = false;
+
+                fasilitas.forEach(item => {
+
+                    const cukup = item.stok >= item.qty;
+
+                    if (!cukup) {
+                        stokKurang = true;
+                    }
+
+                    html += `
+                        <div style="
+                            text-align:left;
+                            border:1px solid #ddd;
+                            padding:10px;
+                            margin-bottom:10px;
+                            border-radius:8px;
+                        ">
+                            <b>${item.nama}</b><br>
+
+                            Qty Diminta :
+                            <b>${item.qty}</b><br>
+
+                            Stok Saat Ini :
+                            <b>${item.stok}</b><br>
+
+                            Sisa Setelah Approval :
+                            <b>${item.sisa}</b><br>
+
+                            Status :
+                            <span style="
+                                color:${cukup ? 'green' : 'red'};
+                                font-weight:bold;
+                            ">
+                                ${cukup ? 'Tersedia' : 'Tidak Cukup'}
+                            </span>
+                        </div>
+                    `;
                 });
+
+                Swal.fire({
+                    title: 'Ketersediaan Fasilitas',
+                    html: html,
+                    width: 700,
+                    icon: stokKurang ? 'warning' : 'question',
+                    showCancelButton: !stokKurang,
+                    confirmButtonText: 'Setujui',
+                    cancelButtonText: 'Batal'
+                }).then((result) => {
+
+                    if(result.isConfirmed && !stokKurang){
+                        form.submit();
+                    }
+
+                });
+
             });
+
         });
 
         const rejectButtons = document.querySelectorAll('.btn-submit-reject');
+
         rejectButtons.forEach(button => {
+
             button.addEventListener('click', function () {
+
                 const form = this.closest('form');
+
                 Swal.fire({
-                    title: 'Tolak Penyewaan?',
-                    text: "Tindakan ini akan membatalkan penyewaan secara permanen.",
-                    icon: 'warning',
+                    title: 'Alasan Penolakan',
+                    input: 'textarea',
+                    inputLabel: 'Masukkan alasan penolakan',
+                    inputPlaceholder: 'Contoh: Jadwal bentrok dengan kegiatan desa...',
+                    inputAttributes: {
+                        'aria-label': 'Masukkan alasan'
+                    },
                     showCancelButton: true,
+                    confirmButtonText: 'Tolak Penyewaan',
+                    cancelButtonText: 'Batal',
                     confirmButtonColor: '#ef4444',
-                    cancelButtonColor: '#64748b',
-                    confirmButtonText: 'Ya, Tolak!',
-                    reverseButtons: true
+
+                    inputValidator: (value) => {
+                        if (!value) {
+                            return 'Alasan penolakan wajib diisi!';
+                        }
+                    }
+
                 }).then((result) => {
-                    if (result.isConfirmed) { form.submit(); }
+
+                    if (result.isConfirmed) {
+
+                        form.querySelector('.alasan-penolakan').value =
+                            result.value;
+
+                        form.submit();
+                    }
+
                 });
+
             });
+
         });
 
         @if(session('success'))
             Swal.fire({ icon: 'success', title: 'Berhasil!', text: "{{ session('success') }}", timer: 3000, showConfirmButton: false, toast: true, position: 'top-end' });
         @endif
+
+        @if(session('error'))
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: @json(session('error')),
+                confirmButtonColor: '#ef4444'
+            });
+        @endif
+
     });
 </script>
 
