@@ -381,7 +381,10 @@ class PenyewaanController extends Controller
 
         try {
             // FIX 1: Ditambahkan with('user') agar data user terbawa ke file email blade
-            $data = Penyewaan::with('user')->where('kode_booking', $kode)->get();
+            $data = Penyewaan::with([
+                'user',
+                'fasilitas'
+            ])->where('kode_booking', $kode)->get();
 
             if ($data->isEmpty()) {
                 return back()->with('error', 'Data booking tidak ditemukan.');
@@ -469,7 +472,10 @@ class PenyewaanController extends Controller
 
         try {
             // FIX 1: Ditambahkan with('user') agar data user terbawa ke file email blade
-            $data = Penyewaan::with('user')->where('kode_booking', $kode)->get();
+            $data = Penyewaan::with([
+                'user',
+                'fasilitas'
+            ])->where('kode_booking', $kode)->get();
 
             if ($data->isEmpty()) {
                 return back()->with('error', 'Data booking tidak ditemukan.');

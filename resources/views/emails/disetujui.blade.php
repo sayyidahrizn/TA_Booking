@@ -28,15 +28,7 @@
                     <td style="padding: 5px 0; vertical-align: top; color: #14532d;">:</td>
                     <td style="padding: 5px 0; color: #14532d;">
                         {{-- Menampilkan daftar fasilitas yang disewa --}}
-                        @if($penyewaan->details && $penyewaan->details->count() > 0)
-                            <ul style="margin: 0; padding-left: 20px;">
-                                @foreach($penyewaan->details as $detail)
-                                    <li>{{ $detail->fasilitas->nama_fasilitas }} ({{ $detail->jumlah }} unit)</li>
-                                @endforeach
-                            </ul>
-                        @else
-                            {{ $penyewaan->fasilitas->nama_fasilitas ?? 'Detail fasilitas tidak tersedia' }}
-                        @endif
+                        {{ $penyewaan->fasilitas->nama_fasilitas ?? '-' }}
                     </td>
                 </tr>
             </table>

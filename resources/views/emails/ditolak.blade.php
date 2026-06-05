@@ -27,15 +27,7 @@
                     <td style="font-weight: bold; padding: 5px 0; vertical-align: top; color: #991b1b;">Fasilitas disewa</td>
                     <td style="padding: 5px 0; vertical-align: top; color: #991b1b;">:</td>
                     <td style="padding: 5px 0; color: #991b1b;">
-                        @if($penyewaan->details && $penyewaan->details->count() > 0)
-                            <ul style="margin: 0; padding-left: 20px;">
-                                @foreach($penyewaan->details as $detail)
-                                    <li>{{ $detail->fasilitas->nama_fasilitas }}</li>
-                                @endforeach
-                            </ul>
-                        @else
-                            {{ $penyewaan->fasilitas->nama_fasilitas ?? '-' }}
-                        @endif
+                        {{ $penyewaan->fasilitas->nama_fasilitas ?? '-' }}
                     </td>
                 </tr>
             </table>
