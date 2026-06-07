@@ -22,7 +22,7 @@
                     <td style="width: 35%; font-weight: bold; padding: 5px 0; color: #991b1b;">Kode Booking</td>
                     <td style="width: 5%; padding: 5px 0; color: #991b1b;">:</td>
                     <td style="font-weight: bold; padding: 5px 0; color: #ef4444;">{{ $penyewaan->kode_booking }}</td>
-                </tr>
+                </tr>f
                 <tr>
                     <td style="font-weight: bold; padding: 5px 0; vertical-align: top; color: #991b1b;">Fasilitas disewa</td>
                     <td style="padding: 5px 0; vertical-align: top; color: #991b1b;">:</td>
